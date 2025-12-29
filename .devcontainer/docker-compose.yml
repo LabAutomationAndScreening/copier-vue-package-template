@@ -1,0 +1,23 @@
+services:
+  devcontainer:
+    # added the platform flag to override any local settings since this image is only compatible with linux/amd64.
+    platform: linux/amd64
+    build:
+      context: .
+      args:
+        REPO_NAME: copier-vue-package-template
+    # You can run `devcontainer-info content-url` in codespaces to see what image base is
+    volumes:
+      - ..:/workspaces/copier-vue-package-template:cached
+      # Break out the venv folder as a separate docker volume for better performance on Windows hosts
+      - python_venv:/workspaces/copier-vue-package-template/.venv
+    command: sleep infinity
+    ports:
+      - "51211:2222"
+    environment:
+      - AWS_PROFILE=localstack
+      - AWS_DEFAULT_REGION=us-east-1
+
+
+volumes:
+  python_venv: {}

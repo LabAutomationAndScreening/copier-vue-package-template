@@ -1,0 +1,63 @@
+# Questions managed by upstream template
+repo_name:
+    type: str
+    help: What is the name of the repository?
+
+repo_org_name:
+    type: str
+    help: What's the organization or username that owns this repository (look in the URL)?
+
+description:
+    type: str
+    help: What is the description of this repository?
+
+install_claude_cli:
+    type: bool
+    help: Should the Claude CLI be installed in the devcontainer?
+    default: no
+
+is_open_source:
+    type: bool
+    help: Is this library open source?
+    default: no
+
+ssh_port_number:
+    type: int
+    help: What port should the devcontainer bind SSH to?
+    # Pick a random port, but ensure it's not in the excluded port range on Windows (powershell: `netsh int ipv4 show excludedportrange protocol=tcp`)
+    default: "{{ ( (range(49152, 49752)   | list) + (range(49852, 50000)   | list) + (range(50060, 50160)   | list) + (range(50160, 50260)   | list) + (range(50260, 50360)   | list) + (range(50914, 51014)   | list) + (range(51114, 51214)   | list) + (range(51214, 51314)   | list) + (range(51314, 51414)   | list) + (range(51623, 51723)   | list) + (range(51723, 51823)   | list) + (range(65269, 65369)   | list) + (range(65369, 65469)   | list) ) | random }}"
+
+use_windows_in_ci:
+    type: bool
+    help: Should CI in the instantiated template also use Windows runners?
+    default: no
+
+node_version:
+    type: str
+    help: What version of NodeJS is used for development?
+    default: "{{ node_version }}"
+
+
+
+
+
+
+
+
+# Questions specific to this template
+
+
+# Additional Settings
+_min_copier_version: "9.4"
+
+_subdirectory: template
+
+_templates_suffix: .jinja
+
+_exclude:
+    - "copier.yml"
+
+# adapted from https://github.com/copier-org/copier-template-extensions#context-hook-extension
+_jinja_extensions:
+- copier_template_extensions.TemplateExtensionLoader
+- extensions/context.py:ContextUpdater
