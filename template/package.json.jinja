@@ -1,0 +1,53 @@
+{% raw %}{
+  "name": "javascript-library",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@{% endraw %}{{ pnpm_version }}{% raw %}",
+  "scripts": {
+    "type-check": "vue-tsc --noEmit",
+    "lint": "eslint . --fix --ext .vue,.ts,.js",
+    "build": "nuxt build",
+    "comment-about-dev-no-fork": "sometimes it seems needed, other times it seems to work with it...more info https://github.com/nuxt/cli/issues/181",
+    "dev": "nuxt dev --no-fork",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare",
+    "test-unit": "vitest run --exclude=\"tests/e2e/**\" --exclude=\"tests/compiled/**\" --coverage",
+    "test-unit:watch": "vitest --exclude=\"tests/e2e/**\" --exclude=\"tests/compiled/**\"",
+    "test-compiled": "dotenv -v NUXT_DISABLE_OPTIMIZE_DEPS=1 -- vitest run --exclude=\"tests/e2e/**\" --exclude=\"tests/unit/**\" --test-timeout=15000"
+  },
+  "dependencies": {
+    "@iconify-json/lucide": "{% endraw %}{{ iconify_json_lucide_version }}{% raw %}",
+    "@iconify/vue": "{% endraw %}{{ iconify_vue_version }}{% raw %}",
+    "@nuxt/fonts": "{% endraw %}{{ nuxt_fonts_version }}{% raw %}",
+    "@nuxt/icon": "{% endraw %}{{ nuxt_icon_version }}{% raw %}",
+    "@nuxt/ui": "{% endraw %}{{ nuxt_ui_version }}{% raw %}",
+    "@nuxtjs/color-mode": "{% endraw %}{{ nuxtjs_color_mode_version }}{% raw %}",
+    "nuxt": "{% endraw %}{{ nuxt_version }}{% raw %}",
+    "vue": "{% endraw %}{{ vue_version }}{% raw %}",
+    "vue-router": "{% endraw %}{{ vue_router_version }}{% raw %}"
+  },
+  "devDependencies": {
+    "@faker-js/faker": "{% endraw %}{{ faker_version }}{% raw %}",
+    "@nuxt/eslint": "{% endraw %}{{ nuxt_eslint_version }}{% raw %}",
+    "@nuxt/schema": "{% endraw %}{{ nuxt_version }}{% raw %}",
+    "@nuxt/test-utils": "{% endraw %}{{ nuxt_test_utils_version }}{% raw %}",
+    "@nuxtjs/apollo": "{% endraw %}{{ nuxt_apollo_version }}{% raw %}",
+    "@nuxtjs/eslint-config-typescript": "^12.1.0",
+    "@types/node": "^{% endraw %}{{ node_version.split('.')[0] }}{% raw %}",
+    "@vitest/coverage-istanbul": "{% endraw %}{{ vitest_version }}{% raw %}",
+    "@vue/devtools-api": "{% endraw %}{{ vue_devtools_api_version }}{% raw %}",
+    "@vue/test-utils": "{% endraw %}{{ vue_test_utils_version }}{% raw %}",
+    "autoprefixer": "^10.4.21",
+    "dotenv-cli": "{% endraw %}{{ dotenv_cli_version }}{% raw %}",
+    "eslint": "{% endraw %}{{ eslint_version }}{% raw %}",
+    "eslint-plugin-vitest": "^0.5.4",
+    "happy-dom": "{% endraw %}{{ happy_dom_version }}{% raw %}",
+    "postcss": "^8.5.3",
+    "tailwindcss": "{% endraw %}{{ tailwindcss_version }}{% raw %}",
+    "typescript": "{% endraw %}{{ typescript_version }}{% raw %}",
+    "vitest": "{% endraw %}{{ vitest_version }}{% raw %}",
+    "vue-eslint-parser": "{% endraw %}{{ vue_eslint_parser_version }}{% raw %}",
+    "vue-tsc": "{% endraw %}{{ vue_tsc_version }}{% raw %}"
+  }
+}{% endraw %}
