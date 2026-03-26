@@ -2,6 +2,6 @@
   {
     "description": "main",
     "relative_directory": ".",
-    "package_manager": "uv"
+    "package_manager": "pnpm"
   }
 ]
