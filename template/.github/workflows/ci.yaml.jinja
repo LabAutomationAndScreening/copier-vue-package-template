@@ -1,0 +1,93 @@
+name: CI
+
+on:
+  push:
+    branches-ignore:
+      - 'gh-readonly-queue/**' # don't run (again) when on these special branches created during merge groups; the `on: merge_group` already triggers it.
+  merge_group:
+
+env:
+  PRE_COMMIT_HOME: ${{ github.workspace }}/.precommit_cache
+
+permissions:
+  id-token: write # needed to assume OIDC roles (e.g. for downloading from CodeArtifact)
+  contents: read # need to explicitly provide this whenever defining permissions because the default value is 'none' for anything not explicitly set when permissions are defined
+
+jobs:
+  get-values:
+    uses: ./.github/workflows/get-values.yaml
+    permissions:
+      contents: write # needed for updating dependabot branches
+
+  lint:
+    needs:
+      - get-values
+    name: Pre-commit
+    uses: ./.github/workflows/pre-commit.yaml
+    permissions:
+      contents: write # needed for mutex
+      id-token: write # needed to assume OIDC roles
+    with:
+      python-version: {{ py313_version }}
+      setup-node: true
+      node-version: {{ node_version }}
+
+  test:
+    needs:
+      - lint
+    strategy:
+      matrix:
+        os:
+          - "{{ gha_linux_runner }}"
+{% if use_windows_in_ci %}          - {{ gha_windows_runner }}
+{% endif %}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: {{ gha_medium_timeout_minutes }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@{{ gha_checkout }}
+
+      - name: Install dependencies
+        uses: ./.github/actions/install_deps
+        with:
+          node-version: {{ node_version }}
+          skip-installing-ssm-plugin-manager: true
+
+      - name: Prepare module stubs
+        run: pnpm dev:prepare
+
+      - name: Run tests
+        run: pnpm test
+
+  required-check:
+    runs-on: {{ gha_linux_runner }}
+    permissions:
+      statuses: write # needed for updating status on Dependabot PRs
+    needs:
+      - get-values
+      - lint
+      - test
+    if: always()
+    timeout-minutes: {{ gha_short_timeout_minutes }}
+    steps:
+      - name: fail if prior job failure
+        run: |
+          success_pattern="^(skipped|success)$"
+
+          if [[ ! "${{ needs.get-values.result }}" =~ $success_pattern ]] ||
+            [[ ! "${{ needs.lint.result }}" =~ $success_pattern ]] ||
+            [[ ! "${{ needs.test.result }}" =~ $success_pattern ]]; then
+            echo "❌ One or more jobs did not finish with skipped or success"
+            exit 1
+          fi
+          echo "✅ All jobs finished with skipped or success"
+      - name: Mark updated Dependabot commit of devcontainer hash as succeeded
+        if: needs.get-values.outputs.dependabot-commit-created == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api \
+            -X POST -H "Accept: application/vnd.github.v3+json" \
+            "/repos/${{ github.repository }}/statuses/${{ needs.get-values.outputs.new-dependabot-sha }}" \
+            -f state=success -f context="required-check" -f description="Initial CI run passed" \
+            -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"

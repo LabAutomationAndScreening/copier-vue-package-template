@@ -1,5 +1,22 @@
 # Questions specific to this template
 
+npm_org_name:
+    type: str
+    help: "npm organization name for scoped packages and publish auth (e.g. 'my-org' → @my-org/...). Leave blank for unscoped packages."
+    default: ""
+
+npm_package_name:
+    type: str
+    help: "Full npm package name (e.g. my-module or @org/my-module)"
+    default: "{% if npm_org_name %}@{{ npm_org_name }}/{{ repo_name }}{% else %}{{ repo_name }}{% endif %}"
+
+npm_package_registry:
+    type: str
+    help: Where is this npm package published?
+    choices:
+        - npm
+        - AWS CodeArtifact
+    default: npm
 
 
 

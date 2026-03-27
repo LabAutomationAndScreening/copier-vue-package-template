@@ -1,0 +1,88 @@
+name: Publish to Staging Package Registry
+
+on:
+  workflow_dispatch:
+
+env:
+  PRE_COMMIT_HOME: ${{ github.workspace }}/.precommit_cache
+
+permissions:
+  id-token: write # needed to assume OIDC roles
+  contents: read
+
+jobs:
+  lint:
+    name: Pre-commit
+    uses: ./.github/workflows/pre-commit.yaml
+    permissions:
+      contents: write # needed for mutex
+      id-token: write # needed to assume OIDC roles
+    with:
+      python-version: {{ py313_version }}
+      setup-node: true
+      node-version: {{ node_version }}
+
+  test:
+    needs:
+      - lint
+    strategy:
+      matrix:
+        os:
+          - "{{ gha_linux_runner }}"
+{% if use_windows_in_ci %}          - {{ gha_windows_runner }}
+{% endif %}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: {{ gha_medium_timeout_minutes }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@{{ gha_checkout }}
+
+      - name: Install dependencies
+        uses: ./.github/actions/install_deps
+        with:
+          node-version: {{ node_version }}
+          skip-installing-ssm-plugin-manager: true
+
+      - name: Prepare module stubs
+        run: pnpm dev:prepare
+
+      - name: Run tests
+        run: pnpm test
+
+  build-and-publish:
+    needs:
+      - test
+    timeout-minutes: {{ gha_medium_timeout_minutes }}
+    runs-on: {{ gha_linux_runner }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@{{ gha_checkout }}
+
+      - name: Install dependencies
+        uses: ./.github/actions/install_deps
+        with:
+          node-version: {{ node_version }}
+          skip-installing-ssm-plugin-manager: true
+
+      - name: Build module
+        run: pnpm prepack
+
+{% if npm_package_registry == "AWS CodeArtifact" %}
+      - name: OIDC Auth for Publishing to CodeArtifact Staging
+        uses: aws-actions/configure-aws-credentials@{{ gha_configure_aws_credentials }}
+        with:
+          role-to-assume: arn:aws:iam::{{ aws_central_infrastructure_account_id }}:role/GHA-CA-Staging-{{ repo_name }}
+          aws-region: {{ aws_org_home_region }}
+
+      - name: Publish to CodeArtifact Staging
+        run: |
+          . .devcontainer/code-artifact-auth.sh
+          pnpm publish --tag rc --no-git-checks
+
+{% else %}
+      - name: Publish to npm (staging rc tag)
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: pnpm publish --tag rc --no-git-checks{% if npm_org_name %} --access public{% endif %}
+
+{% endif %}
