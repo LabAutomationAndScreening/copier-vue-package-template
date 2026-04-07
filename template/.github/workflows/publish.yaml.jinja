@@ -1,4 +1,4 @@
-{% raw %}name: Publish to Package Registry
+name: Publish to Package Registry
 
 on:
   workflow_dispatch:
@@ -10,7 +10,7 @@ on:
         default: false
 
 env:
-  PRE_COMMIT_HOME: ${{ github.workspace }}/.precommit_cache
+  PRE_COMMIT_HOME: {% raw %}${{ github.workspace }}{% endraw %}/.precommit_cache
 
 permissions:
   id-token: write # needed to assume OIDC roles
@@ -19,18 +19,18 @@ permissions:
 jobs:
   get-values:
     name: Get Values
-    timeout-minutes: {% endraw %}{{ gha_short_timeout_minutes }}{% raw %}
-    runs-on: {% endraw %}{{ gha_linux_runner }}{% raw %}
+    timeout-minutes: {{ gha_short_timeout_minutes }}
+    runs-on: {{ gha_linux_runner }}
     outputs:
-      package-version: ${{ steps.extract-package-version.outputs.package_version }}
+      package-version: {% raw %}${{ steps.extract-package-version.outputs.package_version }}{% endraw %}
     steps:
       - name: Checkout code
-        uses: actions/checkout@{% endraw %}{{ gha_checkout }}{% raw %}
+        uses: actions/checkout@{{ gha_checkout }}
 
       - name: Setup python
-        uses: actions/setup-python@{% endraw %}{{ gha_setup_python }}{% raw %}
+        uses: actions/setup-python@{{ gha_setup_python }}
         with:
-          python-version: {% endraw %}{{ py313_version }}{% raw %}
+          python-version: {{ py313_version }}
 
       - name: Extract package version
         id: extract-package-version
@@ -46,9 +46,9 @@ jobs:
       contents: write # needed for mutex
       id-token: write # needed to assume OIDC roles
     with:
-      python-version: {% endraw %}{{ py313_version }}{% raw %}
+      python-version: {{ py313_version }}
       setup-node: true
-      node-version: {% endraw %}{{ node_version }}{% raw %}
+      node-version: {{ node_version }}
 
   test:
     needs:
@@ -56,11 +56,10 @@ jobs:
     strategy:
       matrix:
         os:
-        {% endraw %}
           - "{{ gha_linux_runner }}"
 {% if use_windows_in_ci %}          - {{ gha_windows_runner }}
 {% endif %}
-    runs-on: ${{ matrix.os }}
+    runs-on: {% raw %}${{ matrix.os }}{% endraw %}
     timeout-minutes: {{ gha_medium_timeout_minutes }}
     steps:
       - name: Checkout code
@@ -156,7 +155,7 @@ jobs:
           - "{{ gha_linux_runner }}"
 {% if use_windows_in_ci %}          - {{ gha_windows_runner }}
 {% endif %}
-    runs-on: ${{ matrix.os }}
+    runs-on: {% raw %}${{ matrix.os }}{% endraw %}
     timeout-minutes: {{ gha_medium_timeout_minutes }}
     steps:
       - name: Checkout code
@@ -174,8 +173,7 @@ jobs:
         run: |
           set -euo pipefail
           PKG="{{ npm_package_name }}"
-          {% raw %}
-          VER="${{ needs.get-values.outputs.package-version }}"
+          VER="{% raw %}${{ needs.get-values.outputs.package-version }}{% endraw %}"
           for i in $(seq 1 60); do
             code="$(curl -fsS -o /dev/null -w '%{http_code}' "https://registry.npmjs.org/${PKG}/${VER}" || true)"
             if [ "$code" = "200" ]; then
@@ -197,7 +195,7 @@ jobs:
             echo "Package not yet installable (attempt $i/12); sleeping 10s..."
             sleep 10
           done
-{% endraw %}
+
 {% else %}
       - name: OIDC Auth for Installing from CodeArtifact Staging
         uses: aws-actions/configure-aws-credentials@{{ gha_configure_aws_credentials }}
@@ -208,15 +206,15 @@ jobs:
       - name: Install from CodeArtifact Staging
         run: |
           . .devcontainer/code-artifact-auth.sh
-          npm install --prefix /tmp/staging-test "{{ npm_package_name }}@{% raw %}${{ needs.get-values.outputs.package-version }}" --no-save
+          npm install --prefix /tmp/staging-test "{{ npm_package_name }}@{% raw %}${{ needs.get-values.outputs.package-version }}{% endraw %}" --no-save
 
 {% endif %}
       - name: Confirm module version and loadability
         shell: bash
         run: |
           set -euo pipefail
-          VER="${{ needs.get-values.outputs.package-version }}"
-          INSTALLED=$(node -e "console.log(require('/tmp/staging-test/node_modules/{% endraw %}{{ npm_package_name }}/package.json').version)")
+          VER="{% raw %}${{ needs.get-values.outputs.package-version }}{% endraw %}"
+          INSTALLED=$(node -e "console.log(require('/tmp/staging-test/node_modules/{{ npm_package_name }}/package.json').version)")
           echo "Installed version: $INSTALLED (expected $VER)"
           if [ "$INSTALLED" != "$VER" ]; then
             echo "Version mismatch"
@@ -302,7 +300,7 @@ jobs:
           - "{{ gha_linux_runner }}"
 {% if use_windows_in_ci %}          - {{ gha_windows_runner }}
 {% endif %}
-    runs-on: ${{ matrix.os }}
+    runs-on: {% raw %}${{ matrix.os }}{% endraw %}
     timeout-minutes: {{ gha_medium_timeout_minutes }}
     steps:
       - name: Checkout code
@@ -320,7 +318,7 @@ jobs:
         run: |
           set -euo pipefail
           PKG="{{ npm_package_name }}"
-          VER="{% raw %}${{ needs.get-values.outputs.package-version }}"
+          VER="{% raw %}${{ needs.get-values.outputs.package-version }}{% endraw %}"
           for i in $(seq 1 60); do
             code="$(curl -fsS -o /dev/null -w '%{http_code}' "https://registry.npmjs.org/${PKG}/${VER}" || true)"
             if [ "$code" = "200" ]; then
@@ -342,7 +340,7 @@ jobs:
             echo "Package not yet installable (attempt $i/12); sleeping 10s..."
             sleep 10
           done
-{% endraw %}
+
 {% else %}
       - name: OIDC Auth for Installing from CodeArtifact Primary
         uses: aws-actions/configure-aws-credentials@{{ gha_configure_aws_credentials }}
@@ -362,9 +360,8 @@ jobs:
           set -euo pipefail
           VER="{% raw %}${{ needs.get-values.outputs.package-version }}{% endraw %}"
           INSTALLED=$(node -e "console.log(require('/tmp/primary-test/node_modules/{{ npm_package_name }}/package.json').version)")
-          {% raw %}echo "Installed version: $INSTALLED (expected $VER)"
+          echo "Installed version: $INSTALLED (expected $VER)"
           if [ "$INSTALLED" != "$VER" ]; then
             echo "Version mismatch"
             exit 1
           fi
-{% endraw %}

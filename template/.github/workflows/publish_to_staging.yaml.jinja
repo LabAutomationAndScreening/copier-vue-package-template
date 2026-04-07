@@ -75,7 +75,7 @@ jobs:
         with:
           role-to-assume: arn:aws:iam::{{ aws_central_infrastructure_account_id }}:role/GHA-CA-Staging-{{ repo_name }}
           aws-region: {{ aws_org_home_region }}
-     4
+
       - name: Publish to CodeArtifact Staging
         run: |
           . .devcontainer/code-artifact-auth.sh
