@@ -1,4 +1,4 @@
-name: Publish to Package Registry
+{% raw %}name: Publish to Package Registry
 
 on:
   workflow_dispatch:
@@ -19,18 +19,18 @@ permissions:
 jobs:
   get-values:
     name: Get Values
-    timeout-minutes: {{ gha_short_timeout_minutes }}
-    runs-on: {{ gha_linux_runner }}
+    timeout-minutes: {% endraw %}{{ gha_short_timeout_minutes }}{% raw %}
+    runs-on: {% endraw %}{{ gha_linux_runner }}{% raw %}
     outputs:
       package-version: ${{ steps.extract-package-version.outputs.package_version }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@{{ gha_checkout }}
+        uses: actions/checkout@{% endraw %}{{ gha_checkout }}{% raw %}
 
       - name: Setup python
-        uses: actions/setup-python@{{ gha_setup_python }}
+        uses: actions/setup-python@{% endraw %}{{ gha_setup_python }}{% raw %}
         with:
-          python-version: {{ py313_version }}
+          python-version: {% endraw %}{{ py313_version }}{% raw %}
 
       - name: Extract package version
         id: extract-package-version
@@ -46,9 +46,9 @@ jobs:
       contents: write # needed for mutex
       id-token: write # needed to assume OIDC roles
     with:
-      python-version: {{ py313_version }}
+      python-version: {% endraw %}{{ py313_version }}{% raw %}
       setup-node: true
-      node-version: {{ node_version }}
+      node-version: {% endraw %}{{ node_version }}{% raw %}
 
   test:
     needs:
@@ -56,6 +56,7 @@ jobs:
     strategy:
       matrix:
         os:
+        {% endraw %}
           - "{{ gha_linux_runner }}"
 {% if use_windows_in_ci %}          - {{ gha_windows_runner }}
 {% endif %}
@@ -139,7 +140,7 @@ jobs:
 {% else %}
       - name: Publish to npm (staging rc tag)
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: {% raw %}${{ secrets.NPM_TOKEN }}{% endraw %}
         run: pnpm publish --tag rc --no-git-checks{% if npm_org_name %} --access public{% endif %}
 
 {% endif %}
@@ -173,6 +174,7 @@ jobs:
         run: |
           set -euo pipefail
           PKG="{{ npm_package_name }}"
+          {% raw %}
           VER="${{ needs.get-values.outputs.package-version }}"
           for i in $(seq 1 60); do
             code="$(curl -fsS -o /dev/null -w '%{http_code}' "https://registry.npmjs.org/${PKG}/${VER}" || true)"
@@ -195,7 +197,7 @@ jobs:
             echo "Package not yet installable (attempt $i/12); sleeping 10s..."
             sleep 10
           done
-
+{% endraw %}
 {% else %}
       - name: OIDC Auth for Installing from CodeArtifact Staging
         uses: aws-actions/configure-aws-credentials@{{ gha_configure_aws_credentials }}
@@ -206,7 +208,7 @@ jobs:
       - name: Install from CodeArtifact Staging
         run: |
           . .devcontainer/code-artifact-auth.sh
-          npm install --prefix /tmp/staging-test "{{ npm_package_name }}@${{ needs.get-values.outputs.package-version }}" --no-save
+          npm install --prefix /tmp/staging-test "{{ npm_package_name }}@{% raw %}${{ needs.get-values.outputs.package-version }}" --no-save
 
 {% endif %}
       - name: Confirm module version and loadability
@@ -214,7 +216,7 @@ jobs:
         run: |
           set -euo pipefail
           VER="${{ needs.get-values.outputs.package-version }}"
-          INSTALLED=$(node -e "console.log(require('/tmp/staging-test/node_modules/{{ npm_package_name }}/package.json').version)")
+          INSTALLED=$(node -e "console.log(require('/tmp/staging-test/node_modules/{% endraw %}{{ npm_package_name }}/package.json').version)")
           echo "Installed version: $INSTALLED (expected $VER)"
           if [ "$INSTALLED" != "$VER" ]; then
             echo "Version mismatch"
@@ -223,7 +225,7 @@ jobs:
 
   create-tag:
     name: Create the git tag
-    if: ${{ fromJSON(github.event.inputs.publish_to_primary) }}
+    if: {% raw %}${{ fromJSON(github.event.inputs.publish_to_primary) }}{% endraw %}
     timeout-minutes: {{ gha_short_timeout_minutes }}
     needs:
       - install-from-staging
@@ -247,7 +249,7 @@ jobs:
 
   publish-to-primary:
     name: Publish to Primary Registry
-    if: ${{ fromJSON(github.event.inputs.publish_to_primary) }}
+    if: {% raw %}${{ fromJSON(github.event.inputs.publish_to_primary) }}{% endraw %}
     needs:
       - create-tag
     timeout-minutes: {{ gha_medium_timeout_minutes }}
@@ -283,14 +285,14 @@ jobs:
 {% else %}
       - name: Publish to npm (promotes to latest)
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: {% raw %}${{ secrets.NPM_TOKEN }}{% endraw %}
         run: pnpm publish --no-git-checks{% if npm_org_name %} --access public{% endif %}
 
 {% endif %}
 
   install-from-primary:
     name: Install package from primary registry
-    if: ${{ fromJSON(github.event.inputs.publish_to_primary) }}
+    if: {% raw %}${{ fromJSON(github.event.inputs.publish_to_primary) }}{% endraw %}
     needs:
       - publish-to-primary
       - get-values
@@ -318,7 +320,7 @@ jobs:
         run: |
           set -euo pipefail
           PKG="{{ npm_package_name }}"
-          VER="${{ needs.get-values.outputs.package-version }}"
+          VER="{% raw %}${{ needs.get-values.outputs.package-version }}"
           for i in $(seq 1 60); do
             code="$(curl -fsS -o /dev/null -w '%{http_code}' "https://registry.npmjs.org/${PKG}/${VER}" || true)"
             if [ "$code" = "200" ]; then
@@ -340,7 +342,7 @@ jobs:
             echo "Package not yet installable (attempt $i/12); sleeping 10s..."
             sleep 10
           done
-
+{% endraw %}
 {% else %}
       - name: OIDC Auth for Installing from CodeArtifact Primary
         uses: aws-actions/configure-aws-credentials@{{ gha_configure_aws_credentials }}
@@ -351,17 +353,18 @@ jobs:
       - name: Install from CodeArtifact Primary
         run: |
           . .devcontainer/code-artifact-auth.sh
-          npm install --prefix /tmp/primary-test "{{ npm_package_name }}@${{ needs.get-values.outputs.package-version }}" --no-save
+          npm install --prefix /tmp/primary-test "{{ npm_package_name }}@{% raw %}${{ needs.get-values.outputs.package-version }}{% endraw %}" --no-save
 
 {% endif %}
       - name: Confirm module version and loadability
         shell: bash
         run: |
           set -euo pipefail
-          VER="${{ needs.get-values.outputs.package-version }}"
+          VER="{% raw %}${{ needs.get-values.outputs.package-version }}{% endraw %}"
           INSTALLED=$(node -e "console.log(require('/tmp/primary-test/node_modules/{{ npm_package_name }}/package.json').version)")
-          echo "Installed version: $INSTALLED (expected $VER)"
+          {% raw %}echo "Installed version: $INSTALLED (expected $VER)"
           if [ "$INSTALLED" != "$VER" ]; then
             echo "Version mismatch"
             exit 1
           fi
+{% endraw %}

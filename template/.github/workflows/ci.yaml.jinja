@@ -1,4 +1,4 @@
-name: CI
+{% raw %}name: CI
 
 on:
   push:
@@ -28,9 +28,9 @@ jobs:
       contents: write # needed for mutex
       id-token: write # needed to assume OIDC roles
     with:
-      python-version: {{ py313_version }}
+      python-version: {% endraw %}{{ py313_version }}{% raw %}
       setup-node: true
-      node-version: {{ node_version }}
+      node-version: {% endraw %}{{ node_version }}{% raw %}
 
   test:
     needs:
@@ -38,19 +38,21 @@ jobs:
     strategy:
       matrix:
         os:
+        {% endraw %}
           - "{{ gha_linux_runner }}"
 {% if use_windows_in_ci %}          - {{ gha_windows_runner }}
 {% endif %}
+{% raw %}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: {{ gha_medium_timeout_minutes }}
+    timeout-minutes: {% endraw %}{{ gha_medium_timeout_minutes }}{% raw %}
     steps:
       - name: Checkout code
-        uses: actions/checkout@{{ gha_checkout }}
+        uses: actions/checkout@{% endraw %}{{ gha_checkout }}{% raw %}
 
       - name: Install dependencies
         uses: ./.github/actions/install_deps
         with:
-          node-version: {{ node_version }}
+          node-version: {% endraw %}{{ node_version }}{% raw %}
           skip-installing-ssm-plugin-manager: true
 
       - name: Prepare module stubs
@@ -60,7 +62,7 @@ jobs:
         run: pnpm test
 
   required-check:
-    runs-on: {{ gha_linux_runner }}
+    runs-on: {% endraw %}{{ gha_linux_runner }}{% raw %}
     permissions:
       statuses: write # needed for updating status on Dependabot PRs
     needs:
@@ -68,7 +70,7 @@ jobs:
       - lint
       - test
     if: always()
-    timeout-minutes: {{ gha_short_timeout_minutes }}
+    timeout-minutes: {% endraw %}{{ gha_short_timeout_minutes }}{% raw %}
     steps:
       - name: fail if prior job failure
         run: |
@@ -90,4 +92,5 @@ jobs:
             -X POST -H "Accept: application/vnd.github.v3+json" \
             "/repos/${{ github.repository }}/statuses/${{ needs.get-values.outputs.new-dependabot-sha }}" \
             -f state=success -f context="required-check" -f description="Initial CI run passed" \
-            -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"4
+{% endraw %}

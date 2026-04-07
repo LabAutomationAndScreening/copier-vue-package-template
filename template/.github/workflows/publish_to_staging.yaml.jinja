@@ -1,4 +1,4 @@
-name: Publish to Staging Package Registry
+{% raw %}name: Publish to Staging Package Registry
 
 on:
   workflow_dispatch:
@@ -18,9 +18,9 @@ jobs:
       contents: write # needed for mutex
       id-token: write # needed to assume OIDC roles
     with:
-      python-version: {{ py313_version }}
+      python-version: {% endraw %}{{ py313_version }}{% raw %}
       setup-node: true
-      node-version: {{ node_version }}
+      node-version: {% endraw %}{{ node_version }}{% raw %}
 
   test:
     needs:
@@ -28,19 +28,21 @@ jobs:
     strategy:
       matrix:
         os:
+        {% endraw %}
           - "{{ gha_linux_runner }}"
 {% if use_windows_in_ci %}          - {{ gha_windows_runner }}
 {% endif %}
+{% raw %}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: {{ gha_medium_timeout_minutes }}
+    timeout-minutes: {% endraw %}{{ gha_medium_timeout_minutes }}{% raw %}
     steps:
       - name: Checkout code
-        uses: actions/checkout@{{ gha_checkout }}
+        uses: actions/checkout@{% endraw %}{{ gha_checkout }}{% raw %}
 
       - name: Install dependencies
         uses: ./.github/actions/install_deps
         with:
-          node-version: {{ node_version }}
+          node-version: {% endraw %}{{ node_version }}{% raw %}
           skip-installing-ssm-plugin-manager: true
 
       - name: Prepare module stubs
@@ -52,28 +54,28 @@ jobs:
   build-and-publish:
     needs:
       - test
-    timeout-minutes: {{ gha_medium_timeout_minutes }}
-    runs-on: {{ gha_linux_runner }}
+    timeout-minutes: {% endraw %}{{ gha_medium_timeout_minutes }}{% raw %}
+    runs-on: {% endraw %}{{ gha_linux_runner }}{% raw %}
     steps:
       - name: Checkout code
-        uses: actions/checkout@{{ gha_checkout }}
+        uses: actions/checkout@{% endraw %}{{ gha_checkout }}{% raw %}
 
       - name: Install dependencies
         uses: ./.github/actions/install_deps
         with:
-          node-version: {{ node_version }}
+          node-version: {% endraw %}{{ node_version }}{% raw %}
           skip-installing-ssm-plugin-manager: true
 
       - name: Build module
         run: pnpm prepack
-
+{% endraw %}
 {% if npm_package_registry == "AWS CodeArtifact" %}
       - name: OIDC Auth for Publishing to CodeArtifact Staging
         uses: aws-actions/configure-aws-credentials@{{ gha_configure_aws_credentials }}
         with:
           role-to-assume: arn:aws:iam::{{ aws_central_infrastructure_account_id }}:role/GHA-CA-Staging-{{ repo_name }}
           aws-region: {{ aws_org_home_region }}
-
+     4
       - name: Publish to CodeArtifact Staging
         run: |
           . .devcontainer/code-artifact-auth.sh
@@ -82,7 +84,7 @@ jobs:
 {% else %}
       - name: Publish to npm (staging rc tag)
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: {% raw %}${{ secrets.NPM_TOKEN }}{% endraw %}
         run: pnpm publish --tag rc --no-git-checks{% if npm_org_name %} --access public{% endif %}
 
 {% endif %}
