@@ -41,3 +41,41 @@ That's it! You can now use {{ repo_name }} in your Nuxt app ✨
   ```
 
 </details>
+
+
+{%if is_open_source %}
+## Publishing
+
+### First time publish
+
+#### Pre-reqs
+
+1. Created an organization in npm registry
+2. Have admin access to be able to publish to the organization
+
+#### How-to
+
+Before a package will show up under your organization and allow you to move to the next setup steps for OIDC you will need to publish it once.
+
+
+1. Navigate to package.json and change the version to be something that you probably wont actually use. For example: `0.0.0-rc`
+2. Build and publish the package
+
+```
+# Install dependencies
+pnpm install
+
+# Build the module
+pnpm prepack
+
+# Publish the module
+pnpm publish --tag rc --access public
+
+```
+
+3. Navigate to the npm registry console and select the package. Follow details [here](https://docs.npmjs.com/trusted-publishers) on how configure OIDC for a Github repo.
+
+> [!NOTE]
+> For the CI job to work and publish to npm registry you must setup OIDC.
+
+{% endif %}
