@@ -75,3 +75,9 @@ pnpm publish --tag rc {% if is_open_source %} --access public{% endif %}
 
 > [!NOTE]
 > For the CI job to work and publish to npm registry you must setup OIDC..{% endif %}
+
+
+
+## Updating from the template
+This repository uses a copier template. To pull in the latest updates from the template, use the command:
+`copier update --trust --conflict rej --defaults`
