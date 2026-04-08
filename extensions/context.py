@@ -84,6 +84,7 @@ class ContextUpdater(ContextHook):
         context["vue_eslint_parser_version"] = "^10.4.0"
         context["happy_dom_version"] = "^20.8.4"
         context["node_kiota_bundle_version"] = "1.0.0-preview.100"
+        context["happy_dom_version"] = "^20.8.4"
 
         context["gha_checkout"] = "v6.0.2"
         context["gha_setup_python"] = "v6.2.0"
