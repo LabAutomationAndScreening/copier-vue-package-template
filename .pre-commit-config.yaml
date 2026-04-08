@@ -78,6 +78,7 @@ repos:
               .*\.xml|
               .*\.svg|
               .*/vendor_files/.*|
+              README.md|
           )$
       - id: pretty-format-json
         exclude: |
