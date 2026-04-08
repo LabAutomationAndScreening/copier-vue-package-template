@@ -68,7 +68,6 @@ class ContextUpdater(ContextHook):
         context["nuxt_module_builder_version"] = "^1.0.2"
         context["nuxt_devtools_version"] = "^3.2.4"
         context["nuxt_eslint_config_version"] = "^1.15.2"
-        context["changelogen_version"] = "^0.6.2"
         context["zod_version"] = "^4.3.6"
         context["zod_from_json_schema_version"] = "^0.5.1"
         context["nuxt_apollo_version"] = "5.0.0-alpha.15"
