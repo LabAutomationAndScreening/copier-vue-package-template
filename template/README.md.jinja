@@ -69,7 +69,7 @@ pnpm install
 pnpm prepack
 
 # Publish the module
-pnpm publish --tag rc --access public
+pnpm publish --tag rc {% if is_open_source %} --access public{% endif %}
 
 ```
 
