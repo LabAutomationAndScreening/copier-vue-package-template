@@ -51,7 +51,6 @@
         "ms-python.python@2026.5.2026032701",
         "ms-python.vscode-pylance@2026.1.102",
         "ms-vscode-remote.remote-containers@0.414.0",
-        "charliermarsh.ruff@2026.38.0",
 {% endraw %}{% if is_child_of_copier_base_template is not defined and template_uses_vuejs is defined and template_uses_vuejs is sameas(true) %}{% raw %}
         // VueJS
         "vue.volar@3.2.5",
@@ -75,11 +74,7 @@
         "github.copilot.nextEditSuggestions.allowWhitespaceOnlyChanges": false,
         "[python]": {
           "editor.formatOnSave": true,
-          "editor.defaultFormatter": "charliermarsh.ruff"
         },
-        "ruff.nativeServer": "on",
-        // TODO: see if there's a way to specify different configurations for different folders
-        "ruff.configuration": "/workspaces/{% endraw %}{{ repo_name }}{% raw %}/ruff-test.toml", // use the test configuration since it's less restrictive and won't show false positives and underline things
         "[jsonc][json][javascript][typescript][graphql][css][scss][html][vue]": {
           "editor.defaultFormatter": "esbenp.prettier-vscode",
           "editor.formatOnSave": true
