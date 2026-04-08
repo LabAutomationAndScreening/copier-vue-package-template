@@ -84,6 +84,4 @@ jobs:
       - name: Publish to npm (staging rc tag)
         env:
           NODE_AUTH_TOKEN: {% raw %}${{ secrets.NPM_TOKEN }}{% endraw %}
-        run: pnpm publish --tag rc --no-git-checks{% if is_open_source %} --access public{% endif %}
-
-{% endif %}
+        run: pnpm publish --tag rc --no-git-checks{% if is_open_source %} --access public{% endif %}{% endif %}

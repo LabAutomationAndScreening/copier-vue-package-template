@@ -37,8 +37,7 @@ jobs:
       - lint
     strategy:
       matrix:
-        os:
-        {% endraw %}
+        os:{% endraw %}
           - "{{ gha_linux_runner }}"
 {% if use_windows_in_ci %}          - {{ gha_windows_runner }}
 {% endif %}
@@ -92,5 +91,4 @@ jobs:
             -X POST -H "Accept: application/vnd.github.v3+json" \
             "/repos/${{ github.repository }}/statuses/${{ needs.get-values.outputs.new-dependabot-sha }}" \
             -f state=success -f context="required-check" -f description="Initial CI run passed" \
-            -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-{% endraw %}
+            -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"{% endraw %}

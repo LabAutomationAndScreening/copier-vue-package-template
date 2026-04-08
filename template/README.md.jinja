@@ -41,7 +41,6 @@ That's it! You can now use {{ repo_name }} in your Nuxt app ✨
   ```
 
 </details>
-
 {%if is_open_source %}
 ## Publishing
 
@@ -75,6 +74,4 @@ pnpm publish --tag rc {% if is_open_source %} --access public{% endif %}
 3. Navigate to the npm registry console and select the package. Follow details [here](https://docs.npmjs.com/trusted-publishers) on how configure OIDC for a Github repo.
 
 > [!NOTE]
-> For the CI job to work and publish to npm registry you must setup OIDC..
-
-{% endif %}
+> For the CI job to work and publish to npm registry you must setup OIDC..{% endif %}
