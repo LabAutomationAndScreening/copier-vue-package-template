@@ -27,8 +27,7 @@ jobs:
       - lint
     strategy:
       matrix:
-        os:
-        {% endraw %}
+        os:{% endraw %}
           - "{{ gha_linux_runner }}"
 {% if use_windows_in_ci %}          - {{ gha_windows_runner }}
 {% endif %}
