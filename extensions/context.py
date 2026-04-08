@@ -63,7 +63,7 @@ class ContextUpdater(ContextHook):
         context["dotenv_cli_version"] = "^11.0.0"
         context["faker_version"] = "^10.3.0"
         context["vitest_version"] = "^3.2.4"
-        context["eslint_version"] = "~9.38.0"
+        context["eslint_version"] = "~9.39.1"
         context["nuxt_eslint_version"] = "^1.15.1"
         context["nuxt_module_builder_version"] = "^1.0.2"
         context["nuxt_devtools_version"] = "^3.2.4"
