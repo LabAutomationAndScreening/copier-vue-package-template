@@ -1,5 +1,3 @@
-// @vitest-environment node
-
 import { fileURLToPath } from "node:url";
 import { defineVitestConfig } from "@nuxt/test-utils/config";
 import { coverageConfigDefaults } from "vitest/config";
@@ -28,7 +26,6 @@ export default defineVitestConfig({
         "**/src/runtime/plugins/**",
         "**/playground/**",
         "**/*.d.ts",
-        "**/src/runtime/test-utils/**",
         "**/*.d.mts",
         ...coverageConfigDefaults.exclude,
       ],
