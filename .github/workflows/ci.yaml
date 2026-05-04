@@ -61,7 +61,7 @@ jobs:
         run: uv run pytest tests/unit --durations=5 --no-cov
 
 
-  lint-matrix:
+  copier-create-verification-matrix:
     needs:
       - pre-commit
     strategy:
@@ -170,6 +170,10 @@ jobs:
         with:
           name: pre-commit-log--${{ github.jobs.lint-matrix.name }}
           path: "${{ github.workspace }}/.precommit_cache/pre-commit.log"
+
+      - name: Run tests
+        run: |
+          pnpm test
 
   required-check:
     runs-on: ubuntu-24.04
