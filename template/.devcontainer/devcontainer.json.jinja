@@ -29,7 +29,7 @@
       // https://github.com/devcontainers/features/blob/main/src/node/devcontainer-feature.json
       "version": "{% endraw %}{{ node_version }}{% raw %}",
       "pnpmVersion": "{% endraw %}{{ pnpm_version }}{% raw %}"
-    }{% endraw %}{% endif %}{% raw %}{% endraw %}{% if install_claude_cli %}{% raw %},
+    }{% endraw %}{% endif %}{% if install_claude_cli %}{% raw %},
     // https://github.com/anthropics/devcontainer-features/blob/main/src/claude-code/devcontainer-feature.json
     "ghcr.io/anthropics/devcontainer-features/claude-code:1.0.5": {}{% endraw %}{% endif %}{% raw %}
   },
@@ -55,7 +55,7 @@
         // VueJS
         "vue.volar@3.2.5",
         "vitest.explorer@1.36.0",
-{% endraw %}{% endif %}{% raw %}{% endraw %}{% if is_child_of_copier_base_template is not defined and template_uses_javascript is defined and template_uses_javascript is sameas(true) %}{% raw %}
+{% endraw %}{% endif %}{% if is_child_of_copier_base_template is not defined and template_uses_javascript is defined and template_uses_javascript is sameas(true) %}{% raw %}
         // All javascript
         "dbaeumer.vscode-eslint@3.0.24",
 {% endraw %}{% endif %}{% raw %}

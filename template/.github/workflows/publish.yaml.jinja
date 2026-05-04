@@ -204,6 +204,7 @@ jobs:
           aws-region: {{ aws_org_home_region }}
 
       - name: Install from CodeArtifact Staging
+        shell: bash
         run: |
           . .devcontainer/code-artifact-auth.sh
           npm install --prefix /tmp/staging-test "{{ npm_package_name }}@{% raw %}${{ needs.get-values.outputs.package-version }}{% endraw %}" --no-save
