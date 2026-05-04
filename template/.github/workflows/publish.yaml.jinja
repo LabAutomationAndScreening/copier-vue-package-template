@@ -334,11 +334,13 @@ jobs:
           for i in $(seq 1 12); do
             if npm install --prefix /tmp/primary-test "${PKG}@${VER}" --no-save --quiet; then
               echo "Successfully installed ${PKG}@${VER}"
-              break
+              exit 0
             fi
             echo "Package not yet installable (attempt $i/12); sleeping 10s..."
             sleep 10
           done
+          echo "Timeout waiting for ${PKG}@${VER} to be installable from npm."
+          exit 1
 
 {% else %}
       - name: OIDC Auth for Installing from CodeArtifact Primary
