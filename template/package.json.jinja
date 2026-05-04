@@ -31,7 +31,7 @@
     "dev": "nuxt-module-build build --stub && nuxt-module-build prepare && nuxt dev playground",
     "dev:build": "nuxt build playground",
     "dev:prepare": "nuxt-module-build build --stub && nuxt-module-build prepare && nuxt prepare playground",
-    "type-check": "vue-tsc --noEmit",
+    "type-check": "pnpm install && pnpm dev:prepare && vue-tsc --noEmit",
     "lint": "eslint . --fix --ext .vue,.ts,.js",
     "test": "vitest run",
     "test:watch": "vitest watch",
