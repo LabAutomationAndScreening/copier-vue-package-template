@@ -44,6 +44,7 @@ export default createConfigForNuxt({
       ],
     },
   },
+  // @ts-expect-error -- eslint-plugin-vitest types are incompatible with ESLint 9's Plugin interface; safe to ignore
   {
     files: ["**/*.{test,spec}.ts"],
     plugins: {

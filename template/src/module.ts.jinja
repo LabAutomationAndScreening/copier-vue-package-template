@@ -1,8 +1,6 @@
 import { addPlugin, createResolver, defineNuxtModule } from "@nuxt/kit";
 
-export interface ModuleOptions {}
-
-export default defineNuxtModule<ModuleOptions>({
+export default defineNuxtModule({
   meta: {
     name: "{{ npm_package_name }}",
     configKey: "{{ nuxt_module_config_key }}",
