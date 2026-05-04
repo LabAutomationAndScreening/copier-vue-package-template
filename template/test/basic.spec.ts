@@ -9,6 +9,8 @@ describe("verify basic fixture test (useful as an example, update for your app)"
   });
 
   it("renders the index page", async () => {
+    expect.assertions(1);
+
     const html = await $fetch("/");
     expect(html).toContain("<div>basic</div>");
   });
