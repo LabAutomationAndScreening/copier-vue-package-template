@@ -13,6 +13,7 @@ export default createConfigForNuxt({
     src: ["./playground"],
   },
 }).append(
+  { ignores: [".claude/**"] },
   // your custom flat config here...
   {
     // Disallow <script lang="js"> in Vue files

@@ -6,12 +6,15 @@ description: Doing amazing things
 install_claude_cli: false
 ssh_port_number: 12345
 pull_from_ecr: false
+repo_names_for_codespaces_read_permissions: ''
 use_windows_in_ci: false
 
 
 
 
 node_version: 24.11.1
+
+
 # Data added based on the specifics of this template
 
 npm_org_name: great-company-npm
