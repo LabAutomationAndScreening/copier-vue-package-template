@@ -18,6 +18,7 @@ export default defineVitestConfig({
     include: ["test/**/*.spec.ts"],
     coverage: {
       provider: "istanbul",
+      allowExternal: true,
       reporter: ["text", "json", "html"],
       reportsDirectory: ".coverage",
       thresholds: { 100: true },
@@ -28,7 +29,7 @@ export default defineVitestConfig({
         "**/playground/**",
         "**/*.d.ts",
         "**/*.d.mts",
-        "**/test/**",
+        "**/test/fixtures/**",
         ...coverageConfigDefaults.exclude,
       ],
     },
