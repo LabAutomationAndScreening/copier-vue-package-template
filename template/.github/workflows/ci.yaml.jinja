@@ -21,9 +21,27 @@ jobs:
     permissions:
       contents: write # needed for updating dependabot branches
 
+  check-skip-duplicate:
+    runs-on: {% endraw %}{{ gha_linux_runner }}{% raw %}
+    timeout-minutes: {% endraw %}{{ gha_short_timeout_minutes }}{% raw %}
+    permissions:
+      contents: read
+      pull-requests: read # needed to check if PR exists for current branch
+    outputs:
+      should-run: ${{ steps.check.outputs.should-run }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@{% endraw %}{{ gha_checkout }}{% raw %}
+        with:
+          persist-credentials: false
+      - id: check
+        uses: ./.github/actions/check-skip-duplicates
+
   lint:
     needs:
       - get-values
+      - check-skip-duplicate
+    if: needs.check-skip-duplicate.outputs.should-run == 'true'
     name: Pre-commit
     uses: ./.github/workflows/pre-commit.yaml
     permissions:
@@ -37,6 +55,8 @@ jobs:
   test:
     needs:
       - lint
+      - check-skip-duplicate
+    if: needs.check-skip-duplicate.outputs.should-run == 'true'
     strategy:
       matrix:
         os:{% endraw %}
@@ -59,22 +79,6 @@ jobs:
       - name: Run tests
         run: pnpm test
 
-
-  check-skip-duplicate:
-    runs-on: {% endraw %}{{ gha_linux_runner }}{% raw %}
-    timeout-minutes: {% endraw %}{{ gha_short_timeout_minutes }}{% raw %}
-    permissions:
-      contents: read
-      pull-requests: read # needed to check if PR exists for current branch
-    outputs:
-      should-run: ${{ steps.check.outputs.should-run }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@{% endraw %}{{ gha_checkout }}{% raw %}
-        with:
-          persist-credentials: false
-      - id: check
-        uses: ./.github/actions/check-skip-duplicates
 
   confirm-on-tagged-copier-template:
     if: ${{ github.event_name == 'pull_request' || github.event_name == 'merge_group' }}
