@@ -64,12 +64,27 @@ npm_package_registry:
         - AWS CodeArtifact
     default: "{% if is_open_source %}npm{% else %}AWS CodeArtifact{% endif %}"
 
+
+
+# Questions managed by upstream template
+
+repo_names_for_codespaces_read_permissions:
+    type: str
+    help: Provide a comma-separated list of repository names only within this GitHub organization that you would like the codespace to have read access to (for example, private-template, not my-org/private-template)
+    default: ""
+
+
 _tasks:
   - command: |
         python3 '{{ _copier_conf.src_path }}/src/copier_tasks/remove_precommit_hooks.py' \
             --hook-id-regex '^\s*-\s+id:\s+merge-claude-settings\s*$' \
             --target-file .pre-commit-config.yaml
     when: "{{ not install_claude_cli }}"
+  # Copier does not preserve executable permissions when instantiating the template, so we set them explicitly here.
+  - command: |
+        if [ -f scripts/delete_false_positive_rej.py ]; then
+            chmod +x scripts/delete_false_positive_rej.py
+        fi
   - command: |
         if [ -f ruff.toml ]; then
             echo "Updating ruff target-version from python_version..."
@@ -81,7 +96,7 @@ _tasks:
         fi
 
 # Additional Settings
-_min_copier_version: "9.7"
+_min_copier_version: "9.8"
 
 _subdirectory: template
 
