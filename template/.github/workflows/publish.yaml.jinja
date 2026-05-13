@@ -57,8 +57,6 @@ jobs:
       matrix:
         os:
           - "{{ gha_linux_runner }}"
-{% if use_windows_in_ci %}          - {{ gha_windows_runner }}
-{% endif %}
     runs-on: {% raw %}${{ matrix.os }}{% endraw %}
     timeout-minutes: {{ gha_medium_timeout_minutes }}
     steps:
@@ -151,8 +149,6 @@ jobs:
       matrix:
         os:
           - "{{ gha_linux_runner }}"
-{% if use_windows_in_ci %}          - {{ gha_windows_runner }}
-{% endif %}
     runs-on: {% raw %}${{ matrix.os }}{% endraw %}
     timeout-minutes: {{ gha_medium_timeout_minutes }}
     steps:
@@ -295,8 +291,6 @@ jobs:
       matrix:
         os:
           - "{{ gha_linux_runner }}"
-{% if use_windows_in_ci %}          - {{ gha_windows_runner }}
-{% endif %}
     runs-on: {% raw %}${{ matrix.os }}{% endraw %}
     timeout-minutes: {{ gha_medium_timeout_minutes }}
     steps:

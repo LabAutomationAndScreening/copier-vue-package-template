@@ -38,10 +38,7 @@ jobs:
     strategy:
       matrix:
         os:{% endraw %}
-          - "{{ gha_linux_runner }}"
-{% if use_windows_in_ci %}          - {{ gha_windows_runner }}
-{% endif %}
-{% raw %}
+          - "{{ gha_linux_runner }}"{% raw %}
     runs-on: ${{ matrix.os }}
     timeout-minutes: {% endraw %}{{ gha_medium_timeout_minutes }}{% raw %}
     steps:
