@@ -182,7 +182,7 @@ jobs:
             exit 1
           fi
           for i in $(seq 1 12); do
-            if npm install --prefix /tmp/staging-test "${PKG}@${VER}" --no-save --quiet; then
+            if npm install --prefix $RUNNER_TEMP/staging-test "${PKG}@${VER}" --no-save --quiet; then
               echo "Successfully installed ${PKG}@${VER}"
               break
             fi
@@ -201,7 +201,7 @@ jobs:
         shell: bash
         run: |
           . .devcontainer/code-artifact-auth.sh
-          npm install --prefix /tmp/staging-test "{{ npm_package_name }}@{% raw %}${{ needs.get-values.outputs.package-version }}{% endraw %}" --no-save
+          npm install --prefix $RUNNER_TEMP/staging-test "{{ npm_package_name }}@{% raw %}${{ needs.get-values.outputs.package-version }}{% endraw %}" --no-save
 
 {% endif %}
       - name: Confirm module version and loadability
@@ -209,7 +209,7 @@ jobs:
         run: |
           set -euo pipefail
           VER="{% raw %}${{ needs.get-values.outputs.package-version }}{% endraw %}"
-          INSTALLED=$(node -e "console.log(require('/tmp/staging-test/node_modules/{{ npm_package_name }}/package.json').version)")
+          INSTALLED=$(node -e "console.log(require('$RUNNER_TEMP/staging-test/node_modules/{{ npm_package_name }}/package.json').version)")
           echo "Installed version: $INSTALLED (expected $VER)"
           if [ "$INSTALLED" != "$VER" ]; then
             echo "Version mismatch"
@@ -324,7 +324,7 @@ jobs:
             exit 1
           fi
           for i in $(seq 1 12); do
-            if npm install --prefix /tmp/primary-test "${PKG}@${VER}" --no-save --quiet; then
+            if npm install --prefix $RUNNER_TEMP/primary-test "${PKG}@${VER}" --no-save --quiet; then
               echo "Successfully installed ${PKG}@${VER}"
               exit 0
             fi
@@ -344,7 +344,7 @@ jobs:
       - name: Install from CodeArtifact Primary
         run: |
           . .devcontainer/code-artifact-auth.sh
-          npm install --prefix /tmp/primary-test "{{ npm_package_name }}@{% raw %}${{ needs.get-values.outputs.package-version }}{% endraw %}" --no-save
+          npm install --prefix $RUNNER_TEMP/primary-test "{{ npm_package_name }}@{% raw %}${{ needs.get-values.outputs.package-version }}{% endraw %}" --no-save
 
 {% endif %}
       - name: Confirm module version and loadability
@@ -352,7 +352,7 @@ jobs:
         run: |
           set -euo pipefail
           VER="{% raw %}${{ needs.get-values.outputs.package-version }}{% endraw %}"
-          INSTALLED=$(node -e "console.log(require('/tmp/primary-test/node_modules/{{ npm_package_name }}/package.json').version)")
+          INSTALLED=$(node -e "console.log(require('$RUNNER_TEMP/primary-test/node_modules/{{ npm_package_name }}/package.json').version)")
           echo "Installed version: $INSTALLED (expected $VER)"
           if [ "$INSTALLED" != "$VER" ]; then
             echo "Version mismatch"
