@@ -53,8 +53,8 @@ jobs:
           node-version: {% endraw %}{{ node_version }}{% raw %}
           skip-installing-ssm-plugin-manager: true
 
-      - name: Prepare module stubs
-        run: pnpm dev:prepare
+      - name: Build module
+        run: pnpm prepack
 
       - name: Run tests
         run: pnpm test
