@@ -1,0 +1,15 @@
+{
+  "name": "{{ npm_package_name }}-playground",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@{{ pnpm_version }}",
+  "scripts": {
+    "dev": "nuxt dev",
+    "build": "nuxt build",
+    "generate": "nuxt generate"
+  },
+  "dependencies": {
+    "{{ npm_package_name }}": "workspace:*",
+    "nuxt": "{{ nuxt_version }}"
+  }
+}

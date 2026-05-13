@@ -8,38 +8,6 @@ repos:
     hooks:
       - id: git-dirty
 
-  # package management
-  - repo: local
-    hooks:
-      - id: uv-check
-        name: check pyproject.toml for valid uv config
-        entry: bash -c 'uv lock --check'
-        language: system
-        pass_filenames: false
-        verbose: true
-        files: "^pyproject.toml$|^uv.lock$"
-
-      - id: sync-dependencies-on-commit
-        name: ensure python dependencies are up to date during commits
-        stages:
-          [pre-commit]
-          # When the install does change things, it exits 0, so needed to check for the phrase 'operations' in stdout in order to cause things pre-commit command to fail
-        entry: python -c "import subprocess,sys; results=subprocess.run(['uv', 'sync', '--frozen'],timeout=360,capture_output=True); print ('stdout- ' + results.stdout.decode('utf-8', 'strict')); print ('stderr- ' + results.stderr.decode('utf-8', 'strict')); sys.exit(int(results.returncode or int('Installed' in results.stdout.decode('utf-8', 'strict'))));"
-        # don't pass filenames else the command line sees them twice
-        pass_filenames: false
-        language: system
-        files: "uv.lock$"
-        verbose: true
-
-      - id: sync-dependencies-post-checkout
-        name: ensure python dependencies are up to date during checkouts
-        stages: [post-checkout]
-        entry: bash -c 'uv sync --frozen'
-        pass_filenames: false
-        language: system
-        always_run: true
-        verbose: true
-
   # Reformatting (should generally come before any file format or other checks, because reformatting can change things)
   - repo: https://github.com/crate-ci/typos
     rev: e1f6f6eaedd8587fa3c76ec20e7cbaa8f7132b2d  # frozen: v1
@@ -232,6 +200,34 @@ repos:
   #     - id: zizmor
 
   # Linting
+  - repo: local
+    hooks:
+      - id: typescript-check
+        name: typescript-check
+        entry: bash -c "pnpm type-check"
+        files: '.+\.ts$|.+\.vue$'
+        # don't pass filenames else the command line sees them twice
+        pass_filenames: false
+        language: system
+        # use require_serial so that script is only called once per commit
+        require_serial: true
+        # print the number of files as a sanity-check
+        verbose: true
+
+  - repo: local
+    hooks:
+      - id: eslint
+        name: eslint
+        entry: bash -c "pnpm lint"
+        files: '.+\.ts$|.+\.vue$|.+\.js$'
+        # don't pass filenames else the command line sees them twice
+        pass_filenames: false
+        language: system
+        # use require_serial so that script is only called once per commit
+        require_serial: true
+        # print the number of files as a sanity-check
+        verbose: true
+
 
   - repo: https://github.com/Lucas-C/pre-commit-hooks-markup
     rev: 501f3d60cee13c712492103343bc23efdc7b3d1f #v1.0.1

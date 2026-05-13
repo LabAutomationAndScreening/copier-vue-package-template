@@ -61,7 +61,7 @@ jobs:
         run: uv run pytest tests/unit --durations=5 --no-cov
 
 
-  lint-matrix:
+  copier-create-verification-matrix:
     needs:
       - pre-commit
     strategy:
@@ -168,8 +168,12 @@ jobs:
         if: ${{ failure() }}
         uses: actions/upload-artifact@v4.4.3
         with:
-          name: pre-commit-log--${{ github.jobs.lint-matrix.name }}
+          name: pre-commit-log--${{ github.jobs.copier-create-verification-matrix.name }}
           path: "${{ github.workspace }}/.precommit_cache/pre-commit.log"
+
+      - name: Run tests
+        run: |
+          pnpm test
 
   required-check:
     runs-on: ubuntu-24.04
@@ -178,7 +182,7 @@ jobs:
       - get-values
       - pre-commit
       - unit-test
-      - lint-matrix
+      - copier-create-verification-matrix
     permissions:
       statuses: write # needed for updating status on Dependabot PRs
     if: always()
@@ -190,7 +194,7 @@ jobs:
           if [[ ! "${{ needs.get-values.result }}" =~ $success_pattern ]] ||
             [[ ! "${{ needs.pre-commit.result }}" =~ $success_pattern ]] ||
             [[ ! "${{ needs.unit-test.result }}" =~ $success_pattern ]] ||
-            [[ ! "${{ needs.lint-matrix.result }}" =~ $success_pattern ]]; then
+            [[ ! "${{ needs.copier-create-verification-matrix.result }}" =~ $success_pattern ]]; then
             echo "❌ One or more jobs did not finish with skipped or success"
             exit 1
           fi

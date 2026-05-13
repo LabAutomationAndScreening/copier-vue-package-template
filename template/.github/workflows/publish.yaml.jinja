@@ -1,0 +1,360 @@
+name: Publish to Package Registry
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish_to_primary:
+        description: 'Publish to Primary Registry (expects stable version in package.json, no pre-release identifier)'
+        type: boolean
+        required: false
+        default: false
+
+env:
+  PRE_COMMIT_HOME: {% raw %}${{ github.workspace }}{% endraw %}/.precommit_cache
+
+permissions:
+  id-token: write # needed to assume OIDC roles
+  contents: read # need to explicitly provide this whenever defining permissions because the default value is 'none' for anything not explicitly set when permissions are defined
+
+jobs:
+  get-values:
+    name: Get Values
+    timeout-minutes: {{ gha_short_timeout_minutes }}
+    runs-on: {{ gha_linux_runner }}
+    outputs:
+      package-version: {% raw %}${{ steps.extract-package-version.outputs.package_version }}{% endraw %}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@{{ gha_checkout }}
+
+      - name: Setup python
+        uses: actions/setup-python@{{ gha_setup_python }}
+        with:
+          python-version: {{ py313_version }}
+
+      - name: Extract package version
+        id: extract-package-version
+        run: |
+          VERSION=$(python3 ./.github/workflows/get_npm_version.py)
+          echo "Extracted version: $VERSION"
+          echo "package_version=$VERSION" >> $GITHUB_OUTPUT
+
+  lint:
+    name: Pre-commit
+    uses: ./.github/workflows/pre-commit.yaml
+    permissions:
+      contents: write # needed for mutex
+      id-token: write # needed to assume OIDC roles
+    with:
+      python-version: {{ py313_version }}
+      setup-node: true
+      node-version: {{ node_version }}
+
+  test:
+    needs:
+      - lint
+    strategy:
+      matrix:
+        os:
+          - "{{ gha_linux_runner }}"
+    runs-on: {% raw %}${{ matrix.os }}{% endraw %}
+    timeout-minutes: {{ gha_medium_timeout_minutes }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@{{ gha_checkout }}
+
+      - name: Install dependencies
+        uses: ./.github/actions/install_deps
+        with:
+          node-version: {{ node_version }}
+          skip-installing-ssm-plugin-manager: true
+
+      - name: Prepare module stubs
+        run: pnpm dev:prepare
+
+      - name: Run tests
+        run: pnpm test
+
+  build:
+    needs:
+      - test
+    timeout-minutes: {{ gha_medium_timeout_minutes }}
+    runs-on: {{ gha_linux_runner }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@{{ gha_checkout }}
+
+      - name: Install dependencies
+        uses: ./.github/actions/install_deps
+        with:
+          node-version: {{ node_version }}
+          skip-installing-ssm-plugin-manager: true
+
+      - name: Build module
+        run: pnpm prepack
+
+      - name: Upload built package
+        uses: actions/upload-artifact@{{ gha_upload_artifact }}
+        with:
+          name: npm-package-dist
+          path: dist/
+          if-no-files-found: error
+
+  publish-to-staging:
+    name: Publish to Staging Registry
+    needs:
+      - build
+    timeout-minutes: {{ gha_medium_timeout_minutes }}
+    runs-on: {{ gha_linux_runner }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@{{ gha_checkout }}
+
+      - name: Install dependencies
+        uses: ./.github/actions/install_deps
+        with:
+          node-version: {{ node_version }}
+          skip-installing-ssm-plugin-manager: true
+
+      - name: Download built package
+        uses: actions/download-artifact@{{ gha_download_artifact }}
+        with:
+          name: npm-package-dist
+          path: dist/
+
+{% if npm_package_registry == "AWS CodeArtifact" %}
+      - name: OIDC Auth for Publishing to CodeArtifact Staging
+        uses: aws-actions/configure-aws-credentials@{{ gha_configure_aws_credentials }}
+        with:
+          role-to-assume: arn:aws:iam::{{ aws_central_infrastructure_account_id }}:role/GHA-CA-Staging-{{ repo_name }}
+          aws-region: {{ aws_org_home_region }}
+
+      - name: Publish to CodeArtifact Staging
+        run: |
+          . .devcontainer/code-artifact-auth.sh
+          pnpm publish --tag rc --no-git-checks
+
+{% else %}
+      - name: Publish to npm (staging rc tag)
+        run: pnpm publish --tag rc --no-git-checks{% if is_open_source %} --access public{% endif %}
+
+{% endif %}
+
+  install-from-staging:
+    name: Install package from staging registry
+    needs:
+      - publish-to-staging
+      - get-values
+    strategy:
+      matrix:
+        os:
+          - "{{ gha_linux_runner }}"
+    runs-on: {% raw %}${{ matrix.os }}{% endraw %}
+    timeout-minutes: {{ gha_medium_timeout_minutes }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@{{ gha_checkout }}
+
+      - name: Install dependencies
+        uses: ./.github/actions/install_deps
+        with:
+          node-version: {{ node_version }}
+          skip-installing-ssm-plugin-manager: true
+
+{% if npm_package_registry == "npm" %}
+      - name: Wait for npm to serve the new version
+        shell: bash
+        run: |
+          set -euo pipefail
+          PKG="{{ npm_package_name }}"
+          VER="{% raw %}${{ needs.get-values.outputs.package-version }}{% endraw %}"
+          for i in $(seq 1 60); do
+            code="$(curl -fsS -o /dev/null -w '%{http_code}' "https://registry.npmjs.org/${PKG}/${VER}" || true)"
+            if [ "$code" = "200" ]; then
+              echo "Found ${PKG}@${VER} on npm."
+              break
+            fi
+            echo "Not yet available (attempt $i/60); sleeping 5s..."
+            sleep 5
+          done
+          if [ "$code" != "200" ]; then
+            echo "Timeout waiting for ${PKG}@${VER} on npm."
+            exit 1
+          fi
+          for i in $(seq 1 12); do
+            if npm install --prefix /tmp/staging-test "${PKG}@${VER}" --no-save --quiet; then
+              echo "Successfully installed ${PKG}@${VER}"
+              break
+            fi
+            echo "Package not yet installable (attempt $i/12); sleeping 10s..."
+            sleep 10
+          done
+
+{% else %}
+      - name: OIDC Auth for Installing from CodeArtifact Staging
+        uses: aws-actions/configure-aws-credentials@{{ gha_configure_aws_credentials }}
+        with:
+          role-to-assume: arn:aws:iam::{{ aws_central_infrastructure_account_id }}:role/GHA-CA-Staging-{{ repo_name }}
+          aws-region: {{ aws_org_home_region }}
+
+      - name: Install from CodeArtifact Staging
+        shell: bash
+        run: |
+          . .devcontainer/code-artifact-auth.sh
+          npm install --prefix /tmp/staging-test "{{ npm_package_name }}@{% raw %}${{ needs.get-values.outputs.package-version }}{% endraw %}" --no-save
+
+{% endif %}
+      - name: Confirm module version and loadability
+        shell: bash
+        run: |
+          set -euo pipefail
+          VER="{% raw %}${{ needs.get-values.outputs.package-version }}{% endraw %}"
+          INSTALLED=$(node -e "console.log(require('/tmp/staging-test/node_modules/{{ npm_package_name }}/package.json').version)")
+          echo "Installed version: $INSTALLED (expected $VER)"
+          if [ "$INSTALLED" != "$VER" ]; then
+            echo "Version mismatch"
+            exit 1
+          fi
+
+  create-tag:
+    name: Create the git tag
+    if: {% raw %}${{ fromJSON(github.event.inputs.publish_to_primary) }}{% endraw %}
+    timeout-minutes: {{ gha_short_timeout_minutes }}
+    needs:
+      - install-from-staging
+    permissions:
+      contents: write # needed to push the tag
+    runs-on: {{ gha_linux_runner }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@{{ gha_checkout }}
+
+      - name: Setup python
+        uses: actions/setup-python@{{ gha_setup_python }}
+        with:
+          python-version: {{ py313_version }}
+
+      - name: Confirm tag not already present
+        run: python3 ./.github/workflows/get_npm_version.py --confirm-tag-not-present
+
+      - name: Create and push tag
+        run: python3 ./.github/workflows/get_npm_version.py --push-tag-to-remote
+
+  publish-to-primary:
+    name: Publish to Primary Registry
+    if: {% raw %}${{ fromJSON(github.event.inputs.publish_to_primary) }}{% endraw %}
+    needs:
+      - create-tag
+    timeout-minutes: {{ gha_medium_timeout_minutes }}
+    runs-on: {{ gha_linux_runner }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@{{ gha_checkout }}
+
+      - name: Install dependencies
+        uses: ./.github/actions/install_deps
+        with:
+          node-version: {{ node_version }}
+          skip-installing-ssm-plugin-manager: true
+
+      - name: Download built package
+        uses: actions/download-artifact@{{ gha_download_artifact }}
+        with:
+          name: npm-package-dist
+          path: dist/
+
+{% if npm_package_registry == "AWS CodeArtifact" %}
+      - name: OIDC Auth for Publishing to CodeArtifact Primary
+        uses: aws-actions/configure-aws-credentials@{{ gha_configure_aws_credentials }}
+        with:
+          role-to-assume: arn:aws:iam::{{ aws_central_infrastructure_account_id }}:role/GHA-CA-Primary-{{ repo_name }}
+          aws-region: {{ aws_org_home_region }}
+
+      - name: Publish to CodeArtifact Primary
+        run: |
+          . .devcontainer/code-artifact-auth.sh
+          pnpm publish --no-git-checks
+
+{% else %}
+      - name: Publish to npm (promotes to latest)
+        run: pnpm publish --no-git-checks{% if is_open_source %} --access public{% endif %}
+
+{% endif %}
+
+  install-from-primary:
+    name: Install package from primary registry
+    if: {% raw %}${{ fromJSON(github.event.inputs.publish_to_primary) }}{% endraw %}
+    needs:
+      - publish-to-primary
+      - get-values
+    strategy:
+      matrix:
+        os:
+          - "{{ gha_linux_runner }}"
+    runs-on: {% raw %}${{ matrix.os }}{% endraw %}
+    timeout-minutes: {{ gha_medium_timeout_minutes }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@{{ gha_checkout }}
+
+      - name: Install dependencies
+        uses: ./.github/actions/install_deps
+        with:
+          node-version: {{ node_version }}
+          skip-installing-ssm-plugin-manager: true
+
+{% if npm_package_registry == "npm" %}
+      - name: Wait for npm to serve the new version
+        shell: bash
+        run: |
+          set -euo pipefail
+          PKG="{{ npm_package_name }}"
+          VER="{% raw %}${{ needs.get-values.outputs.package-version }}{% endraw %}"
+          for i in $(seq 1 60); do
+            code="$(curl -fsS -o /dev/null -w '%{http_code}' "https://registry.npmjs.org/${PKG}/${VER}" || true)"
+            if [ "$code" = "200" ]; then
+              echo "Found ${PKG}@${VER} on npm."
+              break
+            fi
+            echo "Not yet available (attempt $i/60); sleeping 5s..."
+            sleep 5
+          done
+          if [ "$code" != "200" ]; then
+            echo "Timeout waiting for ${PKG}@${VER} on npm."
+            exit 1
+          fi
+          for i in $(seq 1 12); do
+            if npm install --prefix /tmp/primary-test "${PKG}@${VER}" --no-save --quiet; then
+              echo "Successfully installed ${PKG}@${VER}"
+              exit 0
+            fi
+            echo "Package not yet installable (attempt $i/12); sleeping 10s..."
+            sleep 10
+          done
+          echo "Timeout waiting for ${PKG}@${VER} to be installable from npm."
+          exit 1
+
+{% else %}
+      - name: OIDC Auth for Installing from CodeArtifact Primary
+        uses: aws-actions/configure-aws-credentials@{{ gha_configure_aws_credentials }}
+        with:
+          role-to-assume: arn:aws:iam::{{ aws_central_infrastructure_account_id }}:role/GHA-CA-Primary-{{ repo_name }}
+          aws-region: {{ aws_org_home_region }}
+
+      - name: Install from CodeArtifact Primary
+        run: |
+          . .devcontainer/code-artifact-auth.sh
+          npm install --prefix /tmp/primary-test "{{ npm_package_name }}@{% raw %}${{ needs.get-values.outputs.package-version }}{% endraw %}" --no-save
+
+{% endif %}
+      - name: Confirm module version and loadability
+        shell: bash
+        run: |
+          set -euo pipefail
+          VER="{% raw %}${{ needs.get-values.outputs.package-version }}{% endraw %}"
+          INSTALLED=$(node -e "console.log(require('/tmp/primary-test/node_modules/{{ npm_package_name }}/package.json').version)")
+          echo "Installed version: $INSTALLED (expected $VER)"
+          if [ "$INSTALLED" != "$VER" ]; then
+            echo "Version mismatch"
+            exit 1
+          fi
