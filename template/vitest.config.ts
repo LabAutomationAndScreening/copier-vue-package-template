@@ -28,6 +28,7 @@ export default defineVitestConfig({
         "**/playground/**",
         "**/*.d.ts",
         "**/*.d.mts",
+        "**/test/**",
         ...coverageConfigDefaults.exclude,
       ],
     },
