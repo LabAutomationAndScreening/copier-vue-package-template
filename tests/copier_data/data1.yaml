@@ -9,13 +9,12 @@ pull_from_ecr: false
 repo_names_for_codespaces_read_permissions: ''
 use_windows_in_ci: false
 
-node_version: 24.11.0
 
 
 
 
 # Data added based on the specifics of this template
-
+node_version: 24.11.0
 npm_org_name: great-company-npm
 npm_package_name: '@great-company-npm/best-repo'
 npm_package_registry: npm
