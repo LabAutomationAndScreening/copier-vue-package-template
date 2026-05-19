@@ -13,7 +13,6 @@ export default defineVitestConfig({
     },
   },
   test: {
-    environment: "nuxt",
     environmentOptions: {
       nuxt: {
         rootDir: fileURLToPath(new URL("./test/fixtures/basic", import.meta.url)),
