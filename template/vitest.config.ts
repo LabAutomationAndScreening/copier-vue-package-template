@@ -6,10 +6,13 @@ export default defineVitestConfig({
   resolve: {
     alias: {
       "~": fileURLToPath(new URL("./src/runtime", import.meta.url)),
+      // @nuxt/test-utils v4 has a Bun-only branch that imports bun:test; Vite
+      // cannot bundle a Bun built-in, so we redirect it to an empty stub.
+      // Upstream issue: https://github.com/nuxt/test-utils/issues/1490
+      "bun:test": fileURLToPath(new URL("./test/setup/bun-test-stub.ts", import.meta.url)),
     },
   },
   test: {
-    environment: "nuxt",
     environmentOptions: {
       nuxt: {
         rootDir: fileURLToPath(new URL("./test/fixtures/basic", import.meta.url)),
