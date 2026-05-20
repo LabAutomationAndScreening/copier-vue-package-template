@@ -130,8 +130,8 @@ class ContextUpdater(ContextHook):
         context["py314_version"] = "3.14.0"
 
         # Kludge to be able to help symlinked jinja files in the child and grandchild templates
-        context["template_uses_vuejs"] = False
-        context["template_uses_typescript"] = False
+        context["template_uses_vuejs"] = True
+        context["template_uses_typescript"] = True
 
         npm_pkg = context.get("npm_package_name", context.get("repo_name", ""))
         bare = npm_pkg.split("/")[-1] if npm_pkg.startswith("@") else npm_pkg

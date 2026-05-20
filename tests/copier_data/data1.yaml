@@ -12,7 +12,6 @@ use_windows_in_ci: false
 
 
 
-
 # Data added based on the specifics of this template
 node_version: 24.11.0
 npm_org_name: great-company-npm
