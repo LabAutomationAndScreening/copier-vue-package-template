@@ -12,8 +12,12 @@ use_windows_in_ci: false
 
 
 
+node_version: 24.11.1
+pnpm_minimum_release_age_exclude: ''
+
+
+
 # Data added based on the specifics of this template
-node_version: 24.11.0
 npm_org_name: great-company-npm
 npm_package_name: '@great-company-npm/best-repo'
 npm_package_registry: npm
