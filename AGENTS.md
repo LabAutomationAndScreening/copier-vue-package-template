@@ -1,6 +1,6 @@
 # Project Structure
 
-This project is a Copier template used to generate other copier templates. It is the "grandparent" of actual instantiated application/library repositories.
+This project is a Copier template used to generate VueJS libraries and NuxtJS modules.
 
 # Code Guidelines
 
@@ -14,6 +14,7 @@ This project is a Copier template used to generate other copier templates. It is
 - Prefer keyword-only parameters (unless a very clear single-argument function): use `*` in Python signatures and destructured options objects in TypeScript.
 - When disabling a linting rule with an inline directive, provide a comment at the end of the line (or on the line above for tools that don't allow extra text after an inline directive) describing the reasoning for disabling the rule.
 - Avoid telling the type checker what a type is rather than letting it prove it. This includes type assertions (`as SomeType` in TypeScript, `cast()` in Python) and variable annotations that override inference. Prefer approaches that let the type checker verify the type itself: `isinstance`/`instanceof` narrowing, restructuring code so the correct type flows naturally, or using discriminated unions. When there is genuinely no alternative, add a comment explaining why the workaround is necessary and why it is safe.
+- Avoid `||` (TypeScript) or `or` (Python) in `if`/`elif` conditions, and avoid `x in ['a', 'b']`-style membership tests in implementation code — coverage tools treat these as a single branch, silently masking untested paths and producing false 100% branch coverage. Use separate `if`/`elif` branches instead so each condition is independently covered.
 
 ## Testing
 
@@ -69,6 +70,7 @@ This project is a Copier template used to generate other copier templates. It is
 ## Tooling
 
 - ❌ Never chain commands (`&&`, `||`, `;`, `&`) — breaks permission allow-list matcher. ✅ One command per tool call. `cd` as separate prior call. Pipes (`|`) OK.
+- `cd` into a subdirectory is auto-approved; navigating up (`cd ..`) or to an absolute path (`cd /some/path`) requires a user permission prompt. Minimize such navigation: run `pre-commit` from whichever subdirectory you're already in (it walks up to find `.pre-commit-config.yaml`).
 - ❌ Never use `python3` or `python` directly. ✅ Always use `uv run python` for Python commands.
 - ❌ Never use `python3`/`python` for one-off data tasks. ✅ Use `jq` for JSON parsing, standard shell builtins for string manipulation. Only reach for `uv run python` when no dedicated tool covers the need.
 - ❌ Never use `uv run python -c "import ...; print(...)"` or `inspect` to introspect Python source. ✅ Read source files directly or grep for symbols — the code is on disk and can be read without running it.

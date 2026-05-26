@@ -7,9 +7,10 @@ install_claude_cli: true
 ssh_port_number: 54321
 pull_from_ecr: true
 use_windows_in_ci: true
+node_version: 24.11.1
+pnpm_minimum_release_age_exclude: 'foo,bar/*'
 
 # Data added based on the specifics of this template
-node_version: 24.11.1
 npm_org_name: ''
 npm_package_name: another_repo
 npm_package_registry: AWS CodeArtifact
