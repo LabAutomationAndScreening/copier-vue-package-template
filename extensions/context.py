@@ -132,6 +132,7 @@ class ContextUpdater(ContextHook):
         # Kludge to be able to help symlinked jinja files in the child and grandchild templates
         context["template_uses_vuejs"] = True
         context["template_uses_typescript"] = True
+        context["template_uses_python"] = False
 
         npm_pkg = context.get("npm_package_name", context.get("repo_name", ""))
         bare = npm_pkg.split("/")[-1] if npm_pkg.startswith("@") else npm_pkg
