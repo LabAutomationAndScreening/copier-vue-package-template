@@ -1,0 +1,17 @@
+{% raw %}// Symlinks this package into its own node_modules as {% endraw %}{{ npm_package_name }}{% raw %} so the
+// dist-mode VRT (tests/vrt/styles.dist.css → `@import "{% endraw %}{{ npm_package_name }}{% raw %}"`) can
+// resolve the bare specifier exactly as a downstream consumer would — exercising the
+// package's `style` export and the `@source` it ships. Idempotent; the link lives in
+// the (git-ignored) node_modules and is recreated on each run.
+import { existsSync, mkdirSync, rmSync, symlinkSync } from "node:fs";
+import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const root = resolve(fileURLToPath(import.meta.url), "../..");
+const link = resolve(root, "node_modules/{% endraw %}{{ npm_package_name }}{% raw %}");
+
+mkdirSync(resolve(link, ".."), { recursive: true });
+if (existsSync(link)) rmSync(link, { recursive: true, force: true });
+symlinkSync(root, link, "junction");
+
+console.log(`Linked {% endraw %}{{ npm_package_name }}{% raw %} -> ${root}`);{% endraw %}
