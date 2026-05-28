@@ -1,6 +1,5 @@
 import { fileURLToPath } from "node:url";
 import { defineVitestProject } from "@nuxt/test-utils/config";
-import ui from "@nuxt/ui/vite";
 import vue from "@vitejs/plugin-vue";
 import { playwright } from "@vitest/browser-playwright";
 import { configDefaults, defineConfig } from "vitest/config";
@@ -56,7 +55,7 @@ export default defineConfig({
         // shared by both modes — also verify the build output and packaging. See the
         // test-vrt:dist script: it runs `prepack` and self-links the package into
         // node_modules so the bare import resolves exactly as it would in a consumer.
-        plugins: [vue(), ui({ dts: false })],
+        plugins: [vue()],
         resolve: {
           alias: {
             "#system-under-test": fileURLToPath(
