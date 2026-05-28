@@ -21,7 +21,7 @@ export default defineConfig({
           name: "unit-nuxt",
           environmentOptions: {
             nuxt: {
-              rootDir: fileURLToPath(new URL("./tests/fixtures/nuxt-app", import.meta.url)),
+              rootDir: fileURLToPath(new URL("./tests/fixtures/basic", import.meta.url)),
             },
           },
           include: ["tests/unit/**/*.nuxt.spec.ts"],
