@@ -208,7 +208,7 @@ jobs:
 
       - name: Run tests
         run: |
-          pnpm test
+          pnpm test-unit
 
   confirm-on-tagged-copier-template:
     if: ${{ github.event_name == 'pull_request' || github.event_name == 'merge_group' }}
