@@ -55,6 +55,7 @@ export default defineConfig({
         // shared by both modes — also verify the build output and packaging. See the
         // test-vrt:dist script: it runs `prepack` and self-links the package into
         // node_modules so the bare import resolves exactly as it would in a consumer.
+        // Other libraries you use may need to be added to the plugins list (e.g. `ui()` from `@nuxt/ui`).
         plugins: [vue()],
         resolve: {
           alias: {
