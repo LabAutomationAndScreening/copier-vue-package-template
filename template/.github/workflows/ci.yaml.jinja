@@ -52,7 +52,7 @@ jobs:
       setup-node: true
       node-version: {% endraw %}{{ node_version }}{% raw %}
 
-  test:
+  test-unit:
     needs:
       - lint
       - check-skip-duplicate
@@ -77,8 +77,47 @@ jobs:
         run: pnpm prepack
 
       - name: Run tests
-        run: pnpm test
+        run: pnpm test-unit
 
+  test-visual-regression:
+    needs:
+      - lint
+      - check-skip-duplicate
+      - test-unit
+    if: needs.check-skip-duplicate.outputs.should-run == 'true'
+    runs-on: {% endraw %}{{ gha_linux_runner }}{% raw %} # keep matched to the env baselines are generated in, or screenshots drift
+    timeout-minutes: {% endraw %}{{ gha_long_timeout_minutes }}{% raw %}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@{% endraw %}{{ gha_checkout }}{% raw %}
+
+      - name: Install dependencies
+        uses: ./.github/actions/install_deps
+        with:
+          node-version: {% endraw %}{{ node_version }}{% raw %}
+          skip-installing-ssm-plugin-manager: true
+
+      - name: Install Playwright chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run visual regression tests
+        run: pnpm test-vrt
+
+      # Kept as a step in this job rather than its own: the dist run reuses the
+      # Playwright install above (the slow part), and test-vrt:dist self-contains
+      # its build+link (prepack + self-symlink), so no extra setup is needed. Split
+      # into a separate job only if parallel feedback or independent retry is wanted.
+      - name: Run visual regression tests against the built package
+        run: pnpm test-vrt:dist
+
+      - name: Upload screenshot diffs
+        if: failure()
+        uses: actions/upload-artifact@{% endraw %}{{ gha_upload_artifact }}{% raw %}
+        with:
+          name: vrt-diffs
+          # actual/diff images from failed toMatchScreenshot land here; the committed
+          # baselines live in tests/vrt/__screenshots__ (already in git).
+          path: .vitest-attachments/**
 
   confirm-on-tagged-copier-template:
     if: ${{ github.event_name == 'pull_request' || github.event_name == 'merge_group' }}
@@ -90,7 +129,8 @@ jobs:
     needs:
       - get-values
       - lint
-      - test
+      - test-unit
+      - test-visual-regression
       - check-skip-duplicate
       - confirm-on-tagged-copier-template
     permissions:
@@ -103,7 +143,8 @@ jobs:
 
           if [[ ! "${{ needs.get-values.result }}" =~ $success_pattern ]] ||
             [[ ! "${{ needs.lint.result }}" =~ $success_pattern ]] ||
-            [[ ! "${{ needs.test.result }}" =~ $success_pattern ]] ||
+            [[ ! "${{ needs.test-unit.result }}" =~ $success_pattern ]] ||
+            [[ ! "${{ needs.test-visual-regression.result }}" =~ $success_pattern ]] ||
             [[ ! "${{ needs.check-skip-duplicate.result }}" =~ $success_pattern ]] ||
             [[ ! "${{ needs.confirm-on-tagged-copier-template.result }}" =~ $success_pattern ]]; then
             echo "❌ One or more jobs did not finish with skipped or success"
