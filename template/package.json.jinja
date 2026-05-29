@@ -33,11 +33,11 @@
     "dev:prepare": "pnpm prepare && nuxt prepare playground",
     "type-check": "pnpm dev:prepare && vue-tsc --noEmit",
     "lint": "eslint . --fix --ext .vue,.ts,.js",
-    "test-unit": "node scripts/vitest-run.mjs --coverage --project unit-*",
-    "test-unit:watch": "vitest watch --project unit-*",
-    "test-vrt": "node scripts/vitest-run.mjs --project browser",
-    "test-vrt:update": "node scripts/vitest-run.mjs --project browser --update",
-    "test-vrt:dist": "pnpm prepack && node scripts/link-self.mjs && VRT_DIST=1 node scripts/vitest-run.mjs --project browser",
+    "test-unit": "vitest run --coverage --project unit-nuxt --project unit-dom --project unit-node",
+    "test-unit:watch": "vitest watch --project unit-nuxt --project unit-dom --project unit-node",
+    "test-vrt": "vitest run --project browser",
+    "test-vrt:update": "vitest run --project browser --update",
+    "test-vrt:dist": "pnpm prepack && node scripts/link-self.mjs && VRT_DIST=1 vitest run --project browser",
     "test-types": "vue-tsc --noEmit && vue-tsc --noEmit -p tests/vrt/tsconfig.json && cd playground && vue-tsc --noEmit"
   },
   "dependencies": {
