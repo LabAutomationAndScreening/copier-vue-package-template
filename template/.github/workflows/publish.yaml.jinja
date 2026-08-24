@@ -251,7 +251,6 @@ jobs:
 
   create-tag:
     name: Create the git tag
-    # Guarded on the default branch so a feature branch cannot tag or promote a release.
     if: {% raw %}${{ fromJSON(github.event.inputs.publish_to_primary) && github.ref == 'refs/heads/main' }}{% endraw %}
     timeout-minutes: {{ gha_short_timeout_minutes }}
     needs:
