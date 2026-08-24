@@ -171,12 +171,15 @@ jobs:
           skip-installing-ssm-plugin-manager: true
 
 {% if npm_package_registry == "npm" %}
-      - name: Wait for npm to serve the new version
+      - name: Wait for npm and install via pnpm
         shell: bash
         run: |
           set -euo pipefail
           PKG="{{ npm_package_name }}"
           VER="{% raw %}${{ needs.get-values.outputs.staging-version }}{% endraw %}"
+          TESTDIR="$RUNNER_TEMP/staging-test"
+          mkdir -p "$TESTDIR"
+          printf '{"name":"smoke-test","version":"0.0.0","private":true,"dependencies":{"%s":"%s"}}' "$PKG" "$VER" > "$TESTDIR/package.json"
           for i in $(seq 1 60); do
             code="$(curl -fsS -o /dev/null -w '%{http_code}' "https://registry.npmjs.org/${PKG}/${VER}" || true)"
             if [ "$code" = "200" ]; then
@@ -190,14 +193,19 @@ jobs:
             echo "Timeout waiting for ${PKG}@${VER} on npm."
             exit 1
           fi
+          cd "$TESTDIR"
           for i in $(seq 1 12); do
-            if npm install --prefix $RUNNER_TEMP/staging-test "${PKG}@${VER}" --no-save --quiet; then
+            if pnpm install --no-frozen-lockfile --ignore-scripts; then
               echo "Successfully installed ${PKG}@${VER}"
               break
             fi
             echo "Package not yet installable (attempt $i/12); sleeping 10s..."
             sleep 10
           done
+          if [ ! -d "node_modules/${PKG}" ]; then
+            echo "Timeout waiting for ${PKG}@${VER} to be installable."
+            exit 1
+          fi
 
 {% else %}
       - name: OIDC Auth for Installing from CodeArtifact Staging
@@ -209,25 +217,42 @@ jobs:
       - name: Install from CodeArtifact Staging
         shell: bash
         run: |
+          set -euo pipefail
           . .devcontainer/code-artifact-auth.sh
-          npm install --prefix $RUNNER_TEMP/staging-test "{{ npm_package_name }}@{% raw %}${{ needs.get-values.outputs.staging-version }}{% endraw %}" --no-save
+          PKG="{{ npm_package_name }}"
+          VER="{% raw %}${{ needs.get-values.outputs.staging-version }}{% endraw %}"
+          TESTDIR="$RUNNER_TEMP/staging-test"
+          mkdir -p "$TESTDIR"
+          printf '{"name":"smoke-test","version":"0.0.0","private":true,"dependencies":{"%s":"%s"}}' "$PKG" "$VER" > "$TESTDIR/package.json"
+          cd "$TESTDIR"
+          pnpm install --no-frozen-lockfile --ignore-scripts
 
 {% endif %}
-      - name: Confirm module version and loadability
+      - name: Confirm module version and all export entries
         shell: bash
         run: |
           set -euo pipefail
           VER="{% raw %}${{ needs.get-values.outputs.staging-version }}{% endraw %}"
-          INSTALLED=$(node -e "console.log(require('$RUNNER_TEMP/staging-test/node_modules/{{ npm_package_name }}/package.json').version)")
+          PKG_DIR="$RUNNER_TEMP/staging-test/node_modules/{{ npm_package_name }}"
+          INSTALLED=$(node -e "console.log(require('$PKG_DIR/package.json').version)")
           echo "Installed version: $INSTALLED (expected $VER)"
           if [ "$INSTALLED" != "$VER" ]; then
             echo "Version mismatch"
             exit 1
           fi
+          # A publish can succeed while the tarball omits files, so assert every exports target is present.
+          while IFS= read -r f; do
+            if [ ! -f "$PKG_DIR/$f" ]; then
+              echo "Missing export entry: $f — tarball is incomplete"
+              exit 1
+            fi
+            echo "OK: $f"
+          done < <(jq -r '.exports | to_entries[] | .value.import | ltrimstr("./")' "$PKG_DIR/package.json")
 
   create-tag:
     name: Create the git tag
-    if: {% raw %}${{ fromJSON(github.event.inputs.publish_to_primary) }}{% endraw %}
+    # Guarded on the default branch so a feature branch cannot tag or promote a release.
+    if: {% raw %}${{ fromJSON(github.event.inputs.publish_to_primary) && github.ref == 'refs/heads/main' }}{% endraw %}
     timeout-minutes: {{ gha_short_timeout_minutes }}
     needs:
       - install-from-staging
@@ -251,7 +276,7 @@ jobs:
 
   publish-to-primary:
     name: Publish to Primary Registry
-    if: {% raw %}${{ fromJSON(github.event.inputs.publish_to_primary) }}{% endraw %}
+    if: {% raw %}${{ fromJSON(github.event.inputs.publish_to_primary) && github.ref == 'refs/heads/main' }}{% endraw %}
     needs:
       - create-tag
     timeout-minutes: {{ gha_medium_timeout_minutes }}
@@ -300,7 +325,7 @@ jobs:
 
   install-from-primary:
     name: Install package from primary registry
-    if: {% raw %}${{ fromJSON(github.event.inputs.publish_to_primary) }}{% endraw %}
+    if: {% raw %}${{ fromJSON(github.event.inputs.publish_to_primary) && github.ref == 'refs/heads/main' }}{% endraw %}
     needs:
       - publish-to-primary
       - get-values
@@ -321,12 +346,15 @@ jobs:
           skip-installing-ssm-plugin-manager: true
 
 {% if npm_package_registry == "npm" %}
-      - name: Wait for npm to serve the new version
+      - name: Wait for npm and install via pnpm
         shell: bash
         run: |
           set -euo pipefail
           PKG="{{ npm_package_name }}"
           VER="{% raw %}${{ needs.get-values.outputs.package-version }}{% endraw %}"
+          TESTDIR="$RUNNER_TEMP/primary-test"
+          mkdir -p "$TESTDIR"
+          printf '{"name":"smoke-test","version":"0.0.0","private":true,"dependencies":{"%s":"%s"}}' "$PKG" "$VER" > "$TESTDIR/package.json"
           for i in $(seq 1 60); do
             code="$(curl -fsS -o /dev/null -w '%{http_code}' "https://registry.npmjs.org/${PKG}/${VER}" || true)"
             if [ "$code" = "200" ]; then
@@ -340,16 +368,19 @@ jobs:
             echo "Timeout waiting for ${PKG}@${VER} on npm."
             exit 1
           fi
+          cd "$TESTDIR"
           for i in $(seq 1 12); do
-            if npm install --prefix $RUNNER_TEMP/primary-test "${PKG}@${VER}" --no-save --quiet; then
+            if pnpm install --no-frozen-lockfile --ignore-scripts; then
               echo "Successfully installed ${PKG}@${VER}"
-              exit 0
+              break
             fi
             echo "Package not yet installable (attempt $i/12); sleeping 10s..."
             sleep 10
           done
-          echo "Timeout waiting for ${PKG}@${VER} to be installable from npm."
-          exit 1
+          if [ ! -d "node_modules/${PKG}" ]; then
+            echo "Timeout waiting for ${PKG}@${VER} to be installable."
+            exit 1
+          fi
 
 {% else %}
       - name: OIDC Auth for Installing from CodeArtifact Primary
@@ -359,19 +390,36 @@ jobs:
           aws-region: {{ aws_org_home_region }}
 
       - name: Install from CodeArtifact Primary
+        shell: bash
         run: |
+          set -euo pipefail
           . .devcontainer/code-artifact-auth.sh
-          npm install --prefix $RUNNER_TEMP/primary-test "{{ npm_package_name }}@{% raw %}${{ needs.get-values.outputs.package-version }}{% endraw %}" --no-save
+          PKG="{{ npm_package_name }}"
+          VER="{% raw %}${{ needs.get-values.outputs.package-version }}{% endraw %}"
+          TESTDIR="$RUNNER_TEMP/primary-test"
+          mkdir -p "$TESTDIR"
+          printf '{"name":"smoke-test","version":"0.0.0","private":true,"dependencies":{"%s":"%s"}}' "$PKG" "$VER" > "$TESTDIR/package.json"
+          cd "$TESTDIR"
+          pnpm install --no-frozen-lockfile --ignore-scripts
 
 {% endif %}
-      - name: Confirm module version and loadability
+      - name: Confirm module version and all export entries
         shell: bash
         run: |
           set -euo pipefail
           VER="{% raw %}${{ needs.get-values.outputs.package-version }}{% endraw %}"
-          INSTALLED=$(node -e "console.log(require('$RUNNER_TEMP/primary-test/node_modules/{{ npm_package_name }}/package.json').version)")
+          PKG_DIR="$RUNNER_TEMP/primary-test/node_modules/{{ npm_package_name }}"
+          INSTALLED=$(node -e "console.log(require('$PKG_DIR/package.json').version)")
           echo "Installed version: $INSTALLED (expected $VER)"
           if [ "$INSTALLED" != "$VER" ]; then
             echo "Version mismatch"
             exit 1
           fi
+          # A publish can succeed while the tarball omits files, so assert every exports target is present.
+          while IFS= read -r f; do
+            if [ ! -f "$PKG_DIR/$f" ]; then
+              echo "Missing export entry: $f — tarball is incomplete"
+              exit 1
+            fi
+            echo "OK: $f"
+          done < <(jq -r '.exports | to_entries[] | .value.import | ltrimstr("./")' "$PKG_DIR/package.json")
