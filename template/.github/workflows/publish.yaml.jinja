@@ -22,22 +22,27 @@ jobs:
     timeout-minutes: {{ gha_short_timeout_minutes }}
     runs-on: {{ gha_linux_runner }}
     outputs:
-      package-version: {% raw %}${{ steps.extract-package-version.outputs.package_version }}{% endraw %}
+      package-version: {% raw %}${{ steps.compute-versions.outputs.package_version }}{% endraw %}
+      staging-version: {% raw %}${{ steps.compute-versions.outputs.staging_version }}{% endraw %}
     steps:
       - name: Checkout code
         uses: actions/checkout@{{ gha_checkout }}
 
-      - name: Setup python
-        uses: actions/setup-python@{{ gha_setup_python }}
+      - name: Setup Node
+        uses: ./.github/actions/install_deps
         with:
-          python-version: {{ py313_version }}
+          node-version: {{ node_version }}
+          install-deps: false
+          skip-installing-ssm-plugin-manager: true
 
-      - name: Extract package version
-        id: extract-package-version
+      - name: Compute versions
+        id: compute-versions
         run: |
-          VERSION=$(python3 ./.github/workflows/get_npm_version.py)
-          echo "Extracted version: $VERSION"
-          echo "package_version=$VERSION" >> $GITHUB_OUTPUT
+          BASE=$(npm pkg get version | tr -d '"')
+          echo "Package version: $BASE"
+          echo "package_version=$BASE" >> $GITHUB_OUTPUT
+          # Every staging publish needs a unique version, otherwise the registry rejects a re-run of this workflow.
+          echo "staging_version=${BASE}-rc.{% raw %}${{ github.run_number }}{% endraw %}" >> $GITHUB_OUTPUT
 
   lint:
     name: Pre-commit
@@ -104,6 +109,7 @@ jobs:
     name: Publish to Staging Registry
     needs:
       - build
+      - get-values
     timeout-minutes: {{ gha_medium_timeout_minutes }}
     runs-on: {{ gha_linux_runner }}
     steps:
@@ -122,6 +128,9 @@ jobs:
           name: npm-package-dist
           path: dist/
 
+      - name: Set staging version
+        run: pnpm version "{% raw %}${{ needs.get-values.outputs.staging-version }}{% endraw %}" --no-git-tag-version --no-git-checks
+
 {% if npm_package_registry == "AWS CodeArtifact" %}
       - name: OIDC Auth for Publishing to CodeArtifact Staging
         uses: aws-actions/configure-aws-credentials@{{ gha_configure_aws_credentials }}
@@ -132,11 +141,11 @@ jobs:
       - name: Publish to CodeArtifact Staging
         run: |
           . .devcontainer/code-artifact-auth.sh
-          pnpm publish --tag rc --no-git-checks
+          pnpm publish --tag rc --no-git-checks --ignore-scripts
 
 {% else %}
       - name: Publish to npm (staging rc tag)
-        run: pnpm publish --tag rc --no-git-checks{% if is_open_source %} --access public{% endif %}
+        run: pnpm publish --tag rc --no-git-checks --ignore-scripts{% if is_open_source %} --access public{% endif %}
 
 {% endif %}
 
@@ -167,7 +176,7 @@ jobs:
         run: |
           set -euo pipefail
           PKG="{{ npm_package_name }}"
-          VER="{% raw %}${{ needs.get-values.outputs.package-version }}{% endraw %}"
+          VER="{% raw %}${{ needs.get-values.outputs.staging-version }}{% endraw %}"
           for i in $(seq 1 60); do
             code="$(curl -fsS -o /dev/null -w '%{http_code}' "https://registry.npmjs.org/${PKG}/${VER}" || true)"
             if [ "$code" = "200" ]; then
@@ -201,14 +210,14 @@ jobs:
         shell: bash
         run: |
           . .devcontainer/code-artifact-auth.sh
-          npm install --prefix $RUNNER_TEMP/staging-test "{{ npm_package_name }}@{% raw %}${{ needs.get-values.outputs.package-version }}{% endraw %}" --no-save
+          npm install --prefix $RUNNER_TEMP/staging-test "{{ npm_package_name }}@{% raw %}${{ needs.get-values.outputs.staging-version }}{% endraw %}" --no-save
 
 {% endif %}
       - name: Confirm module version and loadability
         shell: bash
         run: |
           set -euo pipefail
-          VER="{% raw %}${{ needs.get-values.outputs.package-version }}{% endraw %}"
+          VER="{% raw %}${{ needs.get-values.outputs.staging-version }}{% endraw %}"
           INSTALLED=$(node -e "console.log(require('$RUNNER_TEMP/staging-test/node_modules/{{ npm_package_name }}/package.json').version)")
           echo "Installed version: $INSTALLED (expected $VER)"
           if [ "$INSTALLED" != "$VER" ]; then
@@ -263,6 +272,14 @@ jobs:
           name: npm-package-dist
           path: dist/
 
+      - name: Validate stable version
+        run: |
+          BASE=$(npm pkg get version | tr -d '"')
+          if [ "$BASE" != "${BASE%%-*}" ]; then
+            echo "package.json version '$BASE' contains a prerelease identifier. Set a stable version before publishing to primary." >&2
+            exit 1
+          fi
+
 {% if npm_package_registry == "AWS CodeArtifact" %}
       - name: OIDC Auth for Publishing to CodeArtifact Primary
         uses: aws-actions/configure-aws-credentials@{{ gha_configure_aws_credentials }}
@@ -273,11 +290,11 @@ jobs:
       - name: Publish to CodeArtifact Primary
         run: |
           . .devcontainer/code-artifact-auth.sh
-          pnpm publish --no-git-checks
+          pnpm publish --no-git-checks --ignore-scripts
 
 {% else %}
       - name: Publish to npm (promotes to latest)
-        run: pnpm publish --no-git-checks{% if is_open_source %} --access public{% endif %}
+        run: pnpm publish --no-git-checks --ignore-scripts{% if is_open_source %} --access public{% endif %}
 
 {% endif %}
 
