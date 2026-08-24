@@ -1,4 +1,11 @@
-minimum_pre_commit_version: 4.3.0
+# ============== WARNING ==============================================================================
+# File is managed by copier template: gh:LabAutomationAndScreening/copier-base-template.git
+# See .config/.copier-managed-files.json for details.
+#
+# You are welcome to make changes to this file in your repo if they are custom to your project,
+# but if the change should be shared with other projects, please backport it to the template repo.
+# =====================================================================================================
+minimum_pre_commit_version: 4.5.1
 # run `pre-commit autoupdate --freeze` to update all hooks
 default_install_hook_types: [pre-commit, post-checkout]
 repos:
@@ -10,9 +17,10 @@ repos:
 
   # Reformatting (should generally come before any file format or other checks, because reformatting can change things)
   - repo: https://github.com/crate-ci/typos
-    rev: 359573a3ff38f71c93e160f2ace96d118f6ff42e  # frozen: v1
+    rev: 12ffd4a04b4893ab75db66a59aaad2d996c3e982  # frozen: v1
     hooks:
       - id: typos
+        args: [--write-changes, --force-exclude, --config, .config/_typos.toml]
         exclude: |
           (?x)^(
               .*\.min.js|
@@ -44,20 +52,6 @@ repos:
               .*\.svg|
               .*/vendor_files/.*|
           )$
-      - id: pretty-format-json
-        exclude: |
-          (?x)^(
-              .devcontainer/devcontainer.json|
-              .devcontainer/devcontainer-lock.json|
-              .*devcontainer.json|
-              .*pyrightconfig.json|
-              .*tsconfig.json|
-              .*biome.jsonc|
-              .*/generated/open[-_]api/.*|
-              .*tests/.*/__snapshots__/.*|
-              .*/vendor_files/.*|
-          )$
-        args: [--autofix, --no-sort-keys]
 
   - repo: https://github.com/biomejs/pre-commit
     rev: a450e9c04887b1305951c298db5999cd30155f74  # frozen: v2.1.1
@@ -69,20 +63,19 @@ repos:
               .*generated/graphql.ts|
               .*/generated/open[-_]api/.*|
               .*/schema.graphql|
-              .*pyrightconfig\.json|
           )$
 
   - repo: https://github.com/rbubley/mirrors-prettier
-    rev: 515f543f5718ebfd6ce22e16708bb32c68ff96e1  # frozen: v3.8.3
+    rev: 0ee178619d696787ca73d210cc191d720868c631  # frozen: v3.9.6
     hooks:
       - id: prettier
+        args: [--config, .config/.prettierrc]
         # TODO: get template YAML and MD files more in line with prettier expectations so we can start using prettier on those too
         exclude: |
           (?x)^(
               .devcontainer/devcontainer.json|
               .devcontainer/devcontainer-lock.json|
               .*devcontainer.json|
-              .*pyrightconfig.json|
               .*tsconfig.json|
               .*/__snapshots__/.*|
               .*.min.js|
@@ -126,7 +119,6 @@ repos:
               .devcontainer/devcontainer.json|
               .devcontainer/devcontainer-lock.json|
               .*devcontainer.json|
-              .*pyrightconfig.json|
               .*tsconfig.json|
           )$
       - id: check-yaml
@@ -144,7 +136,7 @@ repos:
       - id: check-case-conflict
 
   - repo: https://github.com/python-jsonschema/check-jsonschema
-    rev: 943377262562a12b57292fc98fabd7dbf81451fe  # frozen: 0.37.2
+    rev: c4654a7e007c9619a5eb63c39a456572a0fa1851  # frozen: 0.38.0
     hooks:
       - id: check-github-workflows
 
@@ -157,7 +149,6 @@ repos:
               .devcontainer/devcontainer.json|
               .devcontainer/devcontainer-lock.json|
               .*devcontainer.json|
-              .*pyrightconfig.json|
               .*tsconfig.json|
           )$
 
@@ -218,10 +209,13 @@ repos:
         exclude: docs/.*\.rst$
 
   - repo: https://github.com/hadolint/hadolint
-    rev: 4e697ba704fd23b2409b947a319c19c3ee54d24f  # frozen: v2.14.0
+    rev: 2eece55955ced00200be9729e9728cb7dacca505  # frozen: v2.15.1
     hooks:
       - id: hadolint-docker
         name: Lint Dockerfiles
+        # The hadolint pre-commit has a problem where it just always pulls the `latest` image at runtime.
+        # Explicitly pinning the image here to the same rev as the hook to patch it until https://github.com/hadolint/hadolint/pull/1177 gets resolved.
+        entry: ghcr.io/hadolint/hadolint:v2.15.1@sha256:fdf19d026b54834f88c62774fdf2a61ff3b586a42632e5070674d41a796bfdf3 hadolint
         exclude: .*\.jinja$
         description: Runs hadolint to lint Dockerfiles
 
