@@ -179,7 +179,6 @@
         "template/README.md.jinja",
         "template/biome.jsonc",
         "template/pnpm-workspace.yaml",
-        "template/pytest.ini",
         "template/scripts/delete_false_positive_rej.py",
         "template/sh.bat",
         "tests/__init__.py",
