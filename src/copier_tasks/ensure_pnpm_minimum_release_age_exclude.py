@@ -1,3 +1,10 @@
+# ============== WARNING ==============================================================================
+# File is managed by copier template: gh:LabAutomationAndScreening/copier-base-template.git
+# See .config/.copier-managed-files.json for details.
+#
+# You are welcome to make changes to this file in your repo if they are custom to your project,
+# but if the change should be shared with other projects, please backport it to the template repo.
+# =====================================================================================================
 import argparse
 import shutil
 import subprocess
@@ -8,7 +15,14 @@ _WORKSPACE_FILENAME = "pnpm-workspace.yaml"
 
 
 def _parse_patterns(raw: str) -> list[str]:
-    return [p.strip().strip('"').strip("'") for p in raw.split(",") if p.strip()]
+    patterns: list[str] = []
+    for raw_pattern in raw.split(","):
+        # Quotes are removed before the emptiness check so a quoted-empty entry doesn't yield an empty pattern.
+        pattern = raw_pattern.strip().strip('"').strip("'")
+        if pattern == "":
+            continue
+        patterns.append(pattern)
+    return patterns
 
 
 def ensure_minimum_release_age_exclude(*, workspace_dir: Path, patterns: list[str]) -> None:
@@ -30,7 +44,9 @@ def ensure_minimum_release_age_exclude(*, workspace_dir: Path, patterns: list[st
         cwd=workspace_dir,
     )
     raw_existing = get_result.stdout.strip()
-    existing = _parse_patterns(raw_existing) if raw_existing != "undefined" else []
+    existing: list[str] = []
+    if raw_existing != "undefined":
+        existing = _parse_patterns(raw_existing)
     merged = existing + [p for p in patterns if p not in existing]
     _ = subprocess.run(  # noqa: S603 -- merged patterns come from pnpm config get and CLI input, both trusted in this copier task context
         ["pnpm", "config", "--location", "project", "set", "minimumReleaseAgeExclude", ",".join(merged)],  # noqa: S607 -- pnpm is a trusted tool, not user input
