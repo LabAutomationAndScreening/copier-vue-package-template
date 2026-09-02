@@ -74,7 +74,7 @@ dependencies = [
 requires-dist = [
     { name = "copier", specifier = "==9.17.1" },
     { name = "copier-template-extensions", specifier = "==0.3.3" },
-    { name = "faker", specifier = ">=40.36.0" },
+    { name = "faker", specifier = ">=40.37.0" },
     { name = "pyrefly", specifier = ">=1.2.0" },
     { name = "pytest", specifier = ">=9.1.1" },
     { name = "pytest-cov", specifier = ">=7.1.0" },
