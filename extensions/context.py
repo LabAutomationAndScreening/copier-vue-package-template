@@ -19,11 +19,12 @@ class ContextUpdater(ContextHook):
     def hook(  # noqa: PLR0915 # yes, this is a lot of statements, but it's all just creating the dict
         self, context: dict[Any, Any]
     ) -> dict[Any, Any]:
-        context["uv_version"] = "0.12.5"
+        context["uv_version"] = "0.12.6"
         context["pnpm_version"] = "11.22.0"
         context["npm_version"] = "11.13.0"
         context["nvm_version"] = "0.40.5"
         context["pre_commit_version"] = "4.6.2"
+        context["task_version"] = "3.53.1"
         context["pytest_version"] = ">=9.1.1"
         context["pytest_randomly_version"] = ">=4.1.0"
         context["pytest_cov_version"] = ">=7.1.0"
@@ -53,14 +54,14 @@ class ContextUpdater(ContextHook):
         context["syrupy_version"] = ">=5.5.3"
         context["structlog_version"] = ">=26.1.0"
         context["httpx_version"] = ">=0.28.1"
-        context["httpx2_version"] = ">=2.10.0"
+        context["httpx2_version"] = ">=2.12.0"
         context["python_kiota_bundle_version"] = ">=1.11.6"
         context["vcrpy_version"] = ">=8.3.0"
         context["pytest_recording_version"] = ">=0.13.4"
         context["pytest_asyncio_version"] = ">=1.4.0"
         context["pytest_timeout_version"] = ">=2.4.0"
         context["pytest_reserial_version"] = ">=0.6.1"
-        context["python_faker_version"] = ">=40.36.0"
+        context["python_faker_version"] = ">=40.37.0"
         context["mutmut_version"] = ">=3.7.0"
         context["pyrefly_version"] = ">=1.2.0"
         context["vacuum_openapi_version"] = "0.30.0"
@@ -139,6 +140,9 @@ class ContextUpdater(ContextHook):
         context["debian_release_name"] = "trixie"
         context["alpine_image_version"] = "3.23"
         context["nginx_image_version"] = "1.30.1"
+
+        context["beads_version"] = "1.2.2"
+        context["dolt_image_version"] = "2.1.0"
 
         context["kiota_cli_version"] = "1.32.4"
 
