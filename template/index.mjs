@@ -1,2 +1,2 @@
-export { default } from './dist/module.mjs'
-export * from './dist/runtime/index.js'
+export { default } from "./dist/module.mjs";
+export * from "./dist/runtime/index.js";
