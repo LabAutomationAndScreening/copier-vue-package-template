@@ -214,8 +214,17 @@ repos:
         exclude: .*\.jinja$
         description: Runs hadolint to lint Dockerfiles
 
+  # Updating repo config/tooling files
   - repo: local
     hooks:
+      - id: merge-claude-settings
+        # Keep Claude's settings.json synced with the JSON5 files. It's only for local development, so don't run it in CI
+        name: merge Claude settings
+        entry: bash -c '[[ "${GITHUB_ACTIONS:-}" == "true" || "${CI:-}" == "true" ]] && exit 0; bash .claude/helpers/merge-claude-settings.sh'
+        files: ^\.claude/settings/.*\.(json|jsonc)$
+        pass_filenames: false
+        language: system
+
       - id: check-claude-paths
         # A skill's or agent's instructions name scripts by path, and an agent types a path as written, so a renamed or
         # removed file breaks them silently. Any change under .claude/ re-checks every path written in a document there.
