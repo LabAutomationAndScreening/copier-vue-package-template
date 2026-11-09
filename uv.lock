@@ -22,7 +22,7 @@ wheels = [
 
 [[package]]
 name = "copier"
-version = "9.18.2"
+version = "9.19.1"
 source = { registry = "https://pypi.org/simple/" }
 dependencies = [
     { name = "colorama" },
@@ -39,9 +39,9 @@ dependencies = [
     { name = "pyyaml" },
     { name = "questionary" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f9/60/2fe1777b27f489450ed8ac5c75390caf91a175d647be05b4284bf515b413/copier-9.18.2.tar.gz", hash = "sha256:0f97902fee79374551c9391fb1132f5a038079f3b497f4dad673295489fc032e", size = 669824, upload-time = "2026-09-07T13:14:38.435Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/fb/16/c299f48d12a97c1fc51294cbb7874ad1ba701e8383559c85c7c0edfe7a28/copier-9.19.1.tar.gz", hash = "sha256:3fe48c38a290c90dfa67cfc7811bc3f576c03f59d3a1e6a09a8d46c2f0403988", size = 679744, upload-time = "2026-10-13T15:04:17.725Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/8d/2a/854d86eb28ced1c4ade3d8c83bdc7ba529ac5df6c80b5d5202a090244d7a/copier-9.18.2-py3-none-any.whl", hash = "sha256:ef0e1b09dece031b09085f2aa637bdc3d5952b98d96b986feaa45a8f3a00d2c6", size = 68113, upload-time = "2026-09-07T13:14:36.934Z" },
+    { url = "https://files.pythonhosted.org/packages/2c/d7/8b9d508dda3b1ca828fb7e5ad26ca1bcb18b0b440f56c73625891ceedc7b/copier-9.19.1-py3-none-any.whl", hash = "sha256:1779270f5082b168982a4ec356afbca24545b3cf1ebb587d1dff843bb5bc9858", size = 68906, upload-time = "2026-10-13T15:04:16.074Z" },
 ]
 
 [[package]]
@@ -72,7 +72,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "copier", specifier = "==9.18.2" },
+    { name = "copier", specifier = "==9.19.1" },
     { name = "copier-template-extensions", specifier = "==0.3.3" },
     { name = "faker", specifier = ">=40.41.0" },
     { name = "pyrefly", specifier = "==1.4.0" },
@@ -156,14 +156,14 @@ wheels = [
 
 [[package]]
 name = "faker"
-version = "40.43.0"
+version = "40.44.0"
 source = { registry = "https://pypi.org/simple/" }
 dependencies = [
     { name = "tzdata", marker = "sys_platform == 'win32'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/33/6c/b8793efc2f00a912ef17cf0b61b717cddf34607499efcb8a32238c119368/faker-40.43.0.tar.gz", hash = "sha256:02fae4327c03a4a6315e1b428a3878f435bfc276c93435ea349b95c0c9372361", size = 2032713, upload-time = "2026-10-09T20:06:29.652Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/87/22/965c7b822f4c80f6e003c696d5fa01b48eea6cc7852d61aec8779519b346/faker-40.44.0.tar.gz", hash = "sha256:97245a3756dcaf35418b89bea9f03ae6881557db0032bf048744c2aaee2a9108", size = 2034259, upload-time = "2026-10-28T17:06:41.048Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/81/ed/0d6d0d6467ae3d009fb82fb411867c7fcfeadbdd25602cab0d7a7963f400/faker-40.43.0-py3-none-any.whl", hash = "sha256:9dd7c0ddfaf30c842b05502d3cf641c135e0120a3a19047008ba8525b72953ed", size = 2069082, upload-time = "2026-10-09T20:06:27.166Z" },
+    { url = "https://files.pythonhosted.org/packages/58/9e/3da962809aefa00ddf457d1b11bba41d7766373a0ad9e537fa0804604361/faker-40.44.0-py3-none-any.whl", hash = "sha256:db808a3ec33fe9ce5caf40b9fb61f85f46e429a56966f765209272adec83e4c6", size = 2069747, upload-time = "2026-10-28T17:06:39.109Z" },
 ]
 
 [[package]]
@@ -419,7 +419,7 @@ wheels = [
 
 [[package]]
 name = "pytest"
-version = "9.1.1"
+version = "9.2.0"
 source = { registry = "https://pypi.org/simple/" }
 dependencies = [
     { name = "colorama", marker = "sys_platform == 'win32'" },
@@ -428,9 +428,9 @@ dependencies = [
     { name = "pluggy" },
     { name = "pygments" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/e4/47/b9efed96c114afcfa3c9d3fe98a76a1d14c74a9e266d397cf6eb64be5e01/pytest-9.1.1.tar.gz", hash = "sha256:1088fbde8f2b49d95a549a195707afa7a76a3ce9bcadc26b6d71f0ffda5fe313", size = 1636369, upload-time = "2026-06-19T10:58:32.857Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/79/42/bb4641652e58dedeac2ec51abc1f8cae4fee4ec63899a0999016229a0f2a/pytest-9.2.0.tar.gz", hash = "sha256:97c4f3b1f3c7414aa36465e09b8220f1d03627993bd51b1282e193753c80557b", size = 1797555, upload-time = "2026-10-27T21:30:20.728Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/24/25/1de2678b631f5a49215c6c96fff41ba892b0a34df68d6d80292b1b48aa7f/pytest-9.1.1-py3-none-any.whl", hash = "sha256:37a86b45efb9a47a61a36449063e8e18d0cab3161329fc099eb21783169c4f0c", size = 386536, upload-time = "2026-06-19T10:58:31.347Z" },
+    { url = "https://files.pythonhosted.org/packages/51/39/1f5d8c8877a0fa327db959c19341d4be61660de1ab6b7391f9eb805bcd67/pytest-9.2.0-py3-none-any.whl", hash = "sha256:07acdcf88ec174f907dc01af70bf52d49b014bbab03faeeade31c96b18c2e588", size = 411776, upload-time = "2026-10-27T21:30:19.131Z" },
 ]
 
 [[package]]
