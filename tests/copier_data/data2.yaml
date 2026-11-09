@@ -19,7 +19,8 @@ use_windows_in_ci: true
 
 
 
-node_version: 24.11.1
+
+node_version: 24.22.1
 pnpm_minimum_release_age_exclude: 'somelib, another-pkg'
 
 
