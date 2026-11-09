@@ -9,12 +9,6 @@ minimum_pre_commit_version: 4.5.1
 # run `pre-commit autoupdate --freeze` to update all hooks
 default_install_hook_types: [pre-commit, post-checkout]
 repos:
-  # Git-related
-  - repo: https://github.com/jumanjihouse/pre-commit-hooks
-    rev: 38980559e3a605691d6579f96222c30778e5a69e # frozen: 3.0.0
-    hooks:
-      - id: git-dirty
-
   # Reformatting (should generally come before any file format or other checks, because reformatting can change things)
   - repo: https://github.com/crate-ci/typos
     rev: 12ffd4a04b4893ab75db66a59aaad2d996c3e982  # frozen: v1
@@ -35,7 +29,7 @@ repos:
           (?x)^(
               .*/vendor_files/.*|
               .*tests/.*/__snapshots__/.*|
-              .*/generated/open[-_]api/.*|
+              (?:.*/)?generated/.*|
           )$
       - id: end-of-file-fixer
         # the XML formatter hook doesn't leave a blank line at the end, so excluding XML files from this hook to avoid conflicts
@@ -43,8 +37,7 @@ repos:
           (?x)^(
               \.github/pull_request_template.md|
               template/\.github/pull_request_template.md|
-              .*generated/graphql.ts|
-              .*/generated/open[-_]api/.*|
+              (?:.*/)?generated/.*|
               .*tests/.*/__snapshots__/.*|
               .devcontainer/devcontainer-lock.json|
               .*\.copier-answers\.yml(\.jinja(-base)?)?|
@@ -221,14 +214,14 @@ repos:
         exclude: .*\.jinja$
         description: Runs hadolint to lint Dockerfiles
 
-  # Updating repo config/tooling files
   - repo: local
     hooks:
-      - id: merge-claude-settings
-        # Keep Claude's settings.json synced with the JSON5 files. It's only for local development, so don't run it in CI
-        name: merge Claude settings
-        entry: bash -c '[[ "${GITHUB_ACTIONS:-}" == "true" || "${CI:-}" == "true" ]] && exit 0; bash .claude/helpers/merge-claude-settings.sh'
-        files: ^\.claude/settings/.*\.(json|jsonc)$
+      - id: check-claude-paths
+        # A skill's or agent's instructions name scripts by path, and an agent types a path as written, so a renamed or
+        # removed file breaks them silently. Any change under .claude/ re-checks every path written in a document there.
+        name: check paths written in Claude documents exist
+        entry: python3 .claude/helpers/check_claude_paths.py
+        files: ^\.claude/
         pass_filenames: false
         language: system
 
