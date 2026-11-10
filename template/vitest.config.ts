@@ -77,6 +77,9 @@ export default defineConfig({
             // Failure screenshots land next to the committed baselines and are easy
             // to commit by accident; failures already attach actuals/diffs under
             // .vitest-attachments for the CI artifact.
+            // TODO: consider keeping failure screenshots for tests that fail before comparing (a locator timeout):
+            // point screenshotDirectory at an ignored folder and pin toMatchScreenshot.resolveScreenshotPath to
+            // __screenshots__, since Vitest's default baseline path follows screenshotDirectory too.
             screenshotFailures: false,
             // Exact matching: baselines are per-platform and rendered deterministically,
             // and the default tolerance silently passed a full accent-color change.
