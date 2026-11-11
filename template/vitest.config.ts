@@ -74,6 +74,31 @@ export default defineConfig({
             enabled: true,
             provider: playwright(),
             headless: true,
+            // Failure screenshots land next to the committed baselines and are easy
+            // to commit by accident; failures already attach actuals/diffs under
+            // .vitest-attachments for the CI artifact.
+            // TODO: consider keeping failure screenshots for tests that fail before comparing (a locator timeout):
+            // point screenshotDirectory at an ignored folder and pin toMatchScreenshot.resolveScreenshotPath to
+            // __screenshots__, since Vitest's default baseline path follows screenshotDirectory too.
+            screenshotFailures: false,
+            // Exact matching: baselines are per-platform and rendered deterministically,
+            // and the default tolerance silently passed a full accent-color change.
+            expect: {
+              toMatchScreenshot: {
+                comparatorName: "pixelmatch",
+                comparatorOptions: {
+                  // No differing pixel is allowed. Unset already means 0 today; stating it keeps a change to
+                  // Vitest's default from loosening the comparison.
+                  allowedMismatchedPixelRatio: 0,
+                  // pixelmatch's default 0.1 per-pixel color tolerance counts a soft background tint swapped
+                  // for the page color as matching, so tints and subtle theme tokens would go unpinned.
+                  threshold: 0,
+                  // By default pixels that look like anti-aliasing are excluded from the count, which hides
+                  // text and edge rendering changes; deterministic baselines don't need that allowance.
+                  includeAA: true,
+                },
+              },
+            },
             instances: [{ browser: "chromium", viewport: { width: 1280, height: 720 } }],
           },
         },
