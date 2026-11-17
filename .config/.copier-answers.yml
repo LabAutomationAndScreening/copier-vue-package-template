@@ -1,5 +1,5 @@
 # Changes here will be overwritten by Copier
-_commit: v0.4.21-2-gc257a502
+_commit: v0.4.21-3-g0ec9d6fb
 _src_path: gh:LabAutomationAndScreening/copier-base-template.git
 copier_answers_directory: .config
 description: Creating libraries in the VueJS ecosystem
