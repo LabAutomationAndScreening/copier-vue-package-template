@@ -5,13 +5,16 @@
 """Post the findings of a /code-review run to a PR as one review, attributed to the AI reviewer.
 
 Usage:
-  post_review.py import --from <file> --pr <number> --commit <sha> --out <findings file> [--model <id>] [--effort <level>]
+  post_review.py import (--from <file> | --agent <id>) --pr <number> --commit <sha> --out <findings file> [--model <id>] [--effort <level>]
+  post_review.py review-agent
   post_review.py plan --findings-file <findings file> [--preview <markdown file>] [--resume]
   post_review.py post --findings-file <findings file> --head <approved pr_head> --base <approved pr_base> [--resume]
 
 import  Reads either a file holding the JSON array of findings /code-review reports, or the transcript of the
-        /code-review agent (the .jsonl output file named in its task notification, whose final message holds that
-        array in a ```json block). Writes a findings file:
+        /code-review agent, whose final report holds that array in a ```json block, as plain text or as a
+        SubagentHandback message. --from takes the file (or the .jsonl output file named in the agent's task
+        notification); --agent takes the agent's ID (the notification's task-id) and finds its transcript under
+        Claude Code's projects folder ($CLAUDE_CONFIG_DIR/projects, or ~/.claude/projects). Writes a findings file:
           {"pr", "reviewed_commit", "reviewer": {"model", "effort"}, "summary", "findings": [{"id", "file", "line",
            "category", "short_summary", "summary", "failure_scenario", "related": [{"id", "note"}]}]}
         `reviewer` is the model and effort level that ran the review, which every posted comment names in its first
@@ -20,7 +23,9 @@ import  Reads either a file holding the JSON array of findings /code-review repo
         IDs (F1, F2, ...) are numbered after any finding IDs already on the PR. `summary` (the review body) and each
         `related` list start empty for the agent to fill in. A finding may also carry `line_commit`, the commit its
         `line` refers to, when that is not reviewed_commit.
-plan    Prints, as JSON, where each finding would be posted and anything that must be resolved first. Posts nothing.
+review-agent  Prints {"review_agent": <id>}: the ID of the /code-review agent this session (CLAUDE_CODE_SESSION_ID)
+        is running in the background, so the ID --agent needs can be recorded before the review finishes.
+plan   Prints, as JSON, where each finding would be posted and anything that must be resolved first. Posts nothing.
         With --preview, also writes the review body and every comment, exactly as they would be posted, to a
         markdown file for the user to read.
 post    Re-runs the plan and refuses if anything needs attention, or if the PR head or base is no longer the --head or
@@ -43,6 +48,7 @@ mapped forward through the diff; a line inside changed code cannot be mapped and
 
 import argparse
 import json
+import os
 import re
 import subprocess
 import sys
@@ -331,12 +337,16 @@ def _parse_related(*, raw: dict[str, Any], context: str) -> list[Related]:
     for entry in value:
         if not isinstance(entry, dict):
             raise InputError(f"{context}: each `related` entry must be an object with `id` and `note`")
+        note = _require_str(raw=entry, key="note", context=context)
+        # a note is rendered inline as `- F<n>: <note>`; a line break would end the list there
+        if "\n" in note:
+            raise InputError(f"{context}: a `related` note must be a single line")
         related.append(
             Related(
                 finding_id=_require_finding_id(
                     finding_id=_require_str(raw=entry, key="id", context=context), context=context
                 ),
-                note=_require_str(raw=entry, key="note", context=context),
+                note=note,
             )
         )
     return related
@@ -430,6 +440,27 @@ def _write_findings_file(*, path: Path, findings_file: FindingsFile) -> None:
     _ = path.write_text(json.dumps(_findings_file_json(findings_file), indent=2, ensure_ascii=False) + "\n", "utf-8")
 
 
+def _report_text(block: object) -> str | None:
+    """Return the text of a content block that carries an agent's report, else None.
+
+    A background agent reports either as plain assistant text or, when the harness tells it to, as the `message` of a
+    SubagentHandback tool call; which one it uses can differ between runs of the same skill, so both count.
+    """
+    if not isinstance(block, dict):
+        return None
+    block_type = block.get("type")
+    if block_type == "text":
+        return str(block.get("text", ""))
+    if block_type != "tool_use":
+        return None
+    if block.get("name") != "SubagentHandback":
+        return None
+    tool_input = block.get("input")
+    if not isinstance(tool_input, dict):
+        return None
+    return str(tool_input.get("message", ""))
+
+
 def _findings_array_from_transcript(text: str) -> list[Any]:
     last_block: str | None = None
     for transcript_line in text.splitlines():
@@ -443,13 +474,14 @@ def _findings_array_from_transcript(text: str) -> list[Any]:
         if not isinstance(content, list):
             continue
         for block in content:
-            if not isinstance(block, dict) or block.get("type") != "text":
+            report = _report_text(block)
+            if report is None:
                 continue
-            blocks = _JSON_BLOCK_RE.findall(block.get("text", ""))
+            blocks = _JSON_BLOCK_RE.findall(report)
             if blocks:
                 last_block = blocks[-1]
     if last_block is None:
-        raise InputError("no ```json block found in any assistant message of the transcript")
+        raise InputError("no ```json block found in any assistant message or SubagentHandback report of the transcript")
     findings = json.loads(last_block)
     if not isinstance(findings, list):
         raise InputError("the transcript's last ```json block is not a JSON array")
@@ -483,7 +515,7 @@ def read_code_review_findings(path: Path) -> tuple[list[Any], Reviewer]:
     """Read the findings array a /code-review run reported, and the model and effort that ran it when recorded.
 
     The file holds either exactly that array, which records no model, or the transcript of the /code-review agent,
-    whose last ```json block in an assistant message holds it.
+    whose last ```json block in an assistant message or SubagentHandback report holds it.
     """
     text = path.read_text(encoding="utf-8")
     try:
@@ -715,14 +747,18 @@ def render_finding_body(*, planned: PlannedFinding, urls: dict[str, str], findin
         lines += [f"**Location:** {_location(planned)} (outside this PR's diff hunks)", ""]
     lines += [finding.summary, "", f"**Failure scenario:** {finding.failure_scenario}", ""]
     if finding.related:
-        lines.append(RELATED_HEADING)
-        for related in finding.related:
-            url = urls.get(related.finding_id)
-            reference = f"[{related.finding_id}]({url})" if url is not None else related.finding_id
-            lines.append(f"- {reference}: {related.note}")
-        lines.append("")
+        lines += [*_related_lines(related=finding.related, urls=urls), ""]
     lines.append(POSTED_UNDER_NOTE)
     return "\n".join(lines)
+
+
+def _related_lines(*, related: list[Related], urls: dict[str, str]) -> list[str]:
+    lines = [RELATED_HEADING]
+    for entry in related:
+        url = urls.get(entry.finding_id)
+        reference = f"[{entry.finding_id}]({url})" if url is not None else entry.finding_id
+        lines.append(f"- {reference}: {entry.note}")
+    return lines
 
 
 def render_review_body(
@@ -816,8 +852,7 @@ def _relink(
     Every finding related to one added now is edited, whether it was added now too or by an earlier post (which is
     what plan reports as will_edit_posted_findings). Links to earlier findings were already in each new comment's
     first body, so a finding related only to those is left alone. A finding an earlier post added keeps the text it
-    was posted with, apart from the new links: re-rendering it would describe where the current plan would put it,
-    which after a push can differ from where it sits.
+    was posted with, apart from its relations (see _relinked_body).
     """
     comments = {**already_posted, **posted}
     urls = _urls(comments)
@@ -826,35 +861,43 @@ def _relink(
             continue
         entry = comments[p.finding.finding_id]
         if entry.body is not None:
-            body = _link_related(body=entry.body, urls=_urls(posted))
+            body = _relinked_body(stored_body=entry.body, finding=p.finding, urls=urls)
         else:
             body = render_finding_body(planned=p, urls=urls, findings_file=findings_file)
         mutation = UPDATE_REVIEW_COMMENT if entry.is_review_comment else UPDATE_PR_COMMENT
         _ = gh_graphql(mutation, {"id": entry.node_id, "body": body})
 
 
-def _link_related(*, body: str, urls: dict[str, str]) -> str:
-    """Link each of `urls`' finding IDs in a posted finding's **Related:** list, leaving the rest as it was posted.
+def _relinked_body(*, stored_body: str, finding: Finding, urls: dict[str, str]) -> str:
+    """Return a posted finding's text with its relations as the findings file has them now, linked to every URL known.
 
-    The links take the form render_finding_body gives them, so the edited comment reads as if it had been rendered
-    with those URLs known.
+    Only the parts render_finding_body generates from the relations change: the marker on the first line, which
+    read.py takes the related IDs from, and the related list. The rest stays as it was posted, since rendering it
+    again would describe where the current plan puts the finding, which after a push can differ from where it sits.
     """
-    # render_finding_body puts the generated list last, after a summary and failure scenario that may quote the
-    # heading themselves, and ends it with a blank line before the footer; only that block is edited
-    head, marker, after_heading = body.rpartition(f"\n{RELATED_HEADING}\n")
-    if not marker:
-        return body
-    related, blank_line, footer = after_heading.partition("\n\n")
-    for finding_id, url in urls.items():
-        link = f"- [{finding_id}]({url}): "
-        # an existing link is replaced too: a post that failed after relinking leaves links to comments it deleted
-        related = re.sub(
-            rf"^- (?:\[{re.escape(finding_id)}\]\([^)]*\)|{re.escape(finding_id)}): ",
-            lambda _, link=link: link,
-            related,
-            flags=re.MULTILINE,
+    # the marker it was posted with says whether render_finding_body wrote a list; a summary or failure scenario that
+    # merely quotes the heading must not be taken for one
+    posted_marker = parse_ai_review_finding(stored_body)
+    first_line, newline, rest = stored_body.partition("\n")
+    if first_line.startswith("<!-- ai-review-finding "):
+        marker = ai_review_finding_marker(
+            finding_id=finding.finding_id, related_ids=[r.finding_id for r in finding.related]
         )
-    return head + marker + related + blank_line + footer
+        stored_body = marker + newline + rest
+    related_block = "\n".join(_related_lines(related=finding.related, urls=urls))
+    if posted_marker is not None:
+        if posted_marker.related_ids:
+            # render_finding_body puts the list last, after the summary and failure scenario, and ends it with a blank
+            # line before the footer
+            before_list, heading_separator, after_heading = stored_body.rpartition(f"\n{RELATED_HEADING}\n")
+            if heading_separator:
+                _, blank_line, footer = after_heading.partition("\n\n")
+                return f"{before_list}\n{related_block}{blank_line}{footer}"
+    # posted with no relations: the list goes where render_finding_body would have put it, just before the footer
+    before_footer, footer_separator, footer = stored_body.rpartition(f"\n\n{POSTED_UNDER_NOTE}")
+    if not footer_separator:
+        return f"{stored_body}\n\n{related_block}"
+    return f"{before_footer}\n\n{related_block}{footer_separator}{footer}"
 
 
 def _settle_failed_post(*, review_id: str | None, posted: dict[str, PostedComment]) -> str | None:
@@ -931,8 +974,74 @@ def _post(*, plan: Plan, findings_file: FindingsFile, resume: bool) -> dict[str,
     }
 
 
+def _claude_projects_dir() -> Path:
+    """Return the folder Claude Code keeps session transcripts in: `projects` under its configuration directory.
+
+    The configuration directory is `CLAUDE_CONFIG_DIR` when that is set, and `~/.claude` otherwise.
+    """
+    config_dir = os.environ.get("CLAUDE_CONFIG_DIR")
+    if config_dir:
+        return Path(config_dir) / "projects"
+    return Path.home() / ".claude" / "projects"
+
+
+def agent_transcript(agent_id: str) -> Path:
+    """Return the transcript Claude Code keeps for the background agent with this ID (a task notification's task-id).
+
+    It lives under the session's project folder as `<session id>/subagents/agent-<agent id>.jsonl` and outlasts the
+    task notification's output file, which sits under /tmp in a folder named after the session ID from before any
+    `/clear`.
+    """
+    projects_dir = _claude_projects_dir()
+    matches = sorted(projects_dir.glob(f"*/*/subagents/agent-{agent_id}.jsonl"))
+    if not matches:
+        raise InputError(f"no transcript named agent-{agent_id}.jsonl under {projects_dir}")
+    if len(matches) > 1:
+        raise InputError(f"several transcripts for agent {agent_id}: {', '.join(str(path) for path in matches)}")
+    return matches[0]
+
+
+def running_review_agent(session_id: str) -> str:
+    """Return the ID of the `/code-review` agent this Claude Code session is running in the background.
+
+    The Skill tool's result for a forked `/code-review` names the agent only as `code-review`, and its ID otherwise
+    arrives only with the task notification, when the review is done. Claude Code writes
+    `<session id>/subagents/agent-<agent id>.meta.json` under the session's project folder as soon as it starts the
+    agent, naming it, giving its spawn depth (1 for an agent this session started itself, not one of its finders)
+    and, once it is done, marking it `finished`. So the one unfinished depth-1 agent named `code-review` is the
+    review that is running.
+    """
+    running: list[str] = []
+    for meta_path in sorted(_claude_projects_dir().glob(f"*/{session_id}/subagents/agent-*.meta.json")):
+        meta = json.loads(meta_path.read_text("utf-8"))
+        if not isinstance(meta, dict):
+            continue
+        if meta.get("name") != "code-review":
+            continue
+        if meta.get("spawnDepth") != 1:
+            continue
+        if meta.get("finished") is True:
+            continue
+        running.append(meta_path.name.removeprefix("agent-").removesuffix(".meta.json"))
+    if not running:
+        raise InputError(f"session {session_id} has no running agent named code-review")
+    if len(running) > 1:
+        raise InputError(f"session {session_id} has several running agents named code-review: {', '.join(running)}")
+    return running[0]
+
+
+def cmd_review_agent(_args: argparse.Namespace) -> None:  # noqa: ARG001 # main() calls every subcommand's handler with the parsed args; this one takes no options
+    session_id = os.environ.get("CLAUDE_CODE_SESSION_ID")
+    if not session_id:
+        raise InputError("CLAUDE_CODE_SESSION_ID is not set; run this from a Bash command in the Claude Code session")
+    _ = sys.stdout.write(json.dumps({"review_agent": running_review_agent(session_id)}) + "\n")
+
+
 def cmd_import(args: argparse.Namespace) -> None:
-    raw_findings, recorded_reviewer = read_code_review_findings(args.source)
+    source = args.source
+    if source is None:
+        source = agent_transcript(args.agent)
+    raw_findings, recorded_reviewer = read_code_review_findings(source)
     reviewer = Reviewer(
         model=args.model if args.model is not None else recorded_reviewer.model,
         effort=args.effort if args.effort is not None else recorded_reviewer.effort,
@@ -965,8 +1074,7 @@ def render_preview(*, plan: Plan, findings_file: FindingsFile, resume: bool) -> 
     already_posted = plan.already_posted(resume=resume)
     to_post = [p for p in plan.planned if p.finding.finding_id not in already_posted]
     # findings not yet posted have no URL, so the preview points each one at its own heading instead
-    new_urls = {p.finding.finding_id: f"#{p.finding.finding_id.lower()}" for p in to_post}
-    urls = {**new_urls, **_urls(already_posted)}
+    urls = {**{p.finding.finding_id: f"#{p.finding.finding_id.lower()}" for p in to_post}, **_urls(already_posted)}
     sections = [
         f"# Preview of the review for PR #{findings_file.pr}",
         f"Anchored to `{plan.anchor_commit[:SHORT_SHA_LENGTH]}`. Nothing here has been posted.",
@@ -983,7 +1091,7 @@ def render_preview(*, plan: Plan, findings_file: FindingsFile, resume: bool) -> 
                     continue
                 stored_body = already_posted[p.finding.finding_id].body
                 if stored_body is not None:
-                    edited_body = _link_related(body=stored_body, urls=new_urls)
+                    edited_body = _relinked_body(stored_body=stored_body, finding=p.finding, urls=urls)
                 else:
                     edited_body = render_finding_body(planned=p, urls=urls, findings_file=findings_file)
                 sections += [f"---\n\n# {p.finding.finding_id} (already posted; edited to this)", edited_body]
@@ -1048,7 +1156,11 @@ def main() -> None:
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     import_parser = subparsers.add_parser("import", help="convert /code-review output into a findings file")
-    _ = import_parser.add_argument("--from", dest="source", required=True, type=Path)
+    import_source = import_parser.add_mutually_exclusive_group(required=True)
+    _ = import_source.add_argument("--from", dest="source", type=Path)
+    _ = import_source.add_argument(
+        "--agent", help="the background /code-review agent's ID (its task-id); reads that agent's transcript"
+    )
     _ = import_parser.add_argument("--pr", required=True, type=int)
     _ = import_parser.add_argument("--commit", required=True, help="the commit the review was run against")
     _ = import_parser.add_argument("--out", required=True, type=Path)
@@ -1059,6 +1171,11 @@ def main() -> None:
         "--effort", default=None, help="the effort level the review ran at; overrides what a transcript records"
     )
     import_parser.set_defaults(handler=cmd_import)
+
+    review_agent_parser = subparsers.add_parser(
+        "review-agent", help="print the ID of the /code-review agent this session is running in the background"
+    )
+    review_agent_parser.set_defaults(handler=cmd_review_agent)
 
     plan_parser = subparsers.add_parser("plan", help="show where each finding would be posted, posting nothing")
     _ = plan_parser.add_argument("--findings-file", required=True, type=Path)
