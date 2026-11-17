@@ -844,7 +844,13 @@ def _link_related(*, body: str, urls: dict[str, str]) -> str:
         return body
     for finding_id, url in urls.items():
         link = f"- [{finding_id}]({url}): "
-        related = re.sub(rf"^- {re.escape(finding_id)}: ", lambda _, link=link: link, related, flags=re.MULTILINE)
+        # an existing link is replaced too: a post that failed after relinking leaves links to comments it deleted
+        related = re.sub(
+            rf"^- (?:\[{re.escape(finding_id)}\]\([^)]*\)|{re.escape(finding_id)}): ",
+            lambda _, link=link: link,
+            related,
+            flags=re.MULTILINE,
+        )
     return head + marker + related
 
 
@@ -956,7 +962,8 @@ def render_preview(*, plan: Plan, findings_file: FindingsFile, resume: bool) -> 
     already_posted = plan.already_posted(resume=resume)
     to_post = [p for p in plan.planned if p.finding.finding_id not in already_posted]
     # findings not yet posted have no URL, so the preview points each one at its own heading instead
-    urls = {**{p.finding.finding_id: f"#{p.finding.finding_id.lower()}" for p in to_post}, **_urls(already_posted)}
+    new_urls = {p.finding.finding_id: f"#{p.finding.finding_id.lower()}" for p in to_post}
+    urls = {**new_urls, **_urls(already_posted)}
     sections = [
         f"# Preview of the review for PR #{findings_file.pr}",
         f"Anchored to `{plan.anchor_commit[:SHORT_SHA_LENGTH]}`. Nothing here has been posted.",
@@ -966,14 +973,17 @@ def render_preview(*, plan: Plan, findings_file: FindingsFile, resume: bool) -> 
         relinked = plan.earlier_findings_to_relink(resume=resume)
         if relinked:
             sections.append(f"Edited to link the new findings (GitHub marks them edited): {', '.join(relinked)}.")
-            # an edit to a comment already on the PR goes out too, so its new body is shown like a new one
+            # an edit to a comment already on the PR goes out too, so its new body is shown like a new one, built the
+            # way _relink builds it
             for p in plan.planned:
                 if p.finding.finding_id not in relinked:
                     continue
-                sections += [
-                    f"---\n\n# {p.finding.finding_id} (already posted; edited to this)",
-                    render_finding_body(planned=p, urls=urls, findings_file=findings_file),
-                ]
+                stored_body = already_posted[p.finding.finding_id].body
+                if stored_body is not None:
+                    edited_body = _link_related(body=stored_body, urls=new_urls)
+                else:
+                    edited_body = render_finding_body(planned=p, urls=urls, findings_file=findings_file)
+                sections += [f"---\n\n# {p.finding.finding_id} (already posted; edited to this)", edited_body]
     if to_post:
         sections += [
             "---\n\n# Review body",
