@@ -64,6 +64,12 @@ def _baseline_first(*, arms: list[str], baseline: str) -> list[str]:
 
 
 def _check_plan(args: argparse.Namespace) -> None:
+    results = args.results.resolve()
+    if results.is_relative_to(args.folder.resolve()):
+        raise _PlanError(
+            f"--results {results} is the run folder or inside it, where each result would count as a stray file."
+            " Put results beside the run folder instead."
+        )
     unusable = [arm for arm in args.arms if _ARM_NAME_RE.fullmatch(arm) is None]
     if unusable:
         raise _PlanError(
@@ -78,6 +84,13 @@ def _check_plan(args: argparse.Namespace) -> None:
         return
     if _ARM_PLACEHOLDER not in args.input:
         raise _PlanError(f"In pasted mode --input must contain {_ARM_PLACEHOLDER}, since each arm has its own prompt")
+
+
+def _run_number(text: str) -> int:
+    number = int(text)
+    if number < 1:
+        raise argparse.ArgumentTypeError(f"run numbers start at 1, got {text}")
+    return number
 
 
 def _prompt_for(*, args: argparse.Namespace, arm: str) -> str:
@@ -97,7 +110,11 @@ def _is_usable_result(path: Path) -> bool:
 
 
 def _has_baseline_result(*, results: Path, baseline: str, input_id: str) -> bool:
+    # The glob alone would also match another input whose ID starts with this one's plus "-run" (pilot-runner).
+    own_name = re.compile(rf"{re.escape(baseline)}-{re.escape(input_id)}-run\d+")
     for path in sorted(results.glob(f"{baseline}-{input_id}-run*.json")):
+        if own_name.fullmatch(path.stem) is None:
+            continue
         if _is_usable_result(path):
             return True
     return False
@@ -166,7 +183,9 @@ def main() -> int:
     _ = parser.add_argument("--input", required=True, help=f"prompt file; in pasted mode with {_ARM_PLACEHOLDER} in it")
     _ = parser.add_argument("--id", required=True, help="name of this input, used in result names")
     _ = parser.add_argument("--results", type=Path, required=True)
-    _ = parser.add_argument("--runs", type=int, nargs="+", default=[1, 2], help="run numbers to make (default: 1 2)")
+    _ = parser.add_argument(
+        "--runs", type=_run_number, nargs="+", default=[1, 2], help="run numbers to make, from 1 (default: 1 2)"
+    )
     _ = parser.add_argument("--baseline", default="base", help="name of the arm holding the guidance as it stands")
     _ = parser.add_argument("--overwrite", action="store_true")
     add_cli_arguments(parser)
