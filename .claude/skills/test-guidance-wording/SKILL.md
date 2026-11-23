@@ -191,7 +191,8 @@ environment signs in. Do not print the key or read credential files to find out.
 
 `tally.py` repeats three checks on every batch for free: one turn per run, the same input token count for
 identical runs, and a constant difference between each arm and the baseline. That difference is the changed
-line. A leak of a repository's guidance would add thousands of tokens.
+line. A leak of a repository's guidance would add thousands of tokens. A difference of zero gets a note rather
+than a failure, since a reworded line can be as long as the one it replaces; `arms.py` and the canary settle it.
 
 ## Step 5: Reviewing: what does the wording decide?
 
@@ -207,8 +208,10 @@ Read `.claude/skills/test-guidance-wording/reviewing.md` before building the fir
 3. **Then the candidates**, on the same input.
 4. **Score each case as gained, lost, both or neither** against the baseline. A lost case, one the baseline
    caught and the candidate does not, is the worst outcome a wording can have, and only the baseline shows it.
-5. **Decide.** If a candidate gets a case wrong for a reason its text invites, rewrite the line and rerun that
-   batch. If two candidates agree everywhere, the shorter one wins.
+5. **Decide.** If a candidate gets a case wrong for a reason its text invites, rewrite the line as a new arm
+   (`a2`): check it with `arms.py`, build its prompt with `assemble.py`, and run it on the same input. Never rerun
+   an arm under its old name: its prompt and its results would mix two wordings. If two candidates agree
+   everywhere, the shorter one wins.
 
 A pilot like this costs well under 100,000 tokens and has usually told the wordings apart by its end.
 
