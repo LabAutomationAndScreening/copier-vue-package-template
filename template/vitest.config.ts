@@ -4,6 +4,12 @@ import vue from "@vitejs/plugin-vue";
 import { playwright } from "@vitest/browser-playwright";
 import { configDefaults, defineConfig } from "vitest/config";
 
+// Vitest cuts `$variable` values in test.each titles, and the values in an assertion's one-line message, at 40
+// characters by default, which hides the words that tell parametrized cases apart. Each project sets this itself,
+// since a root-level chaiConfig doesn't reach the projects' test titles. 0 does not mean "no limit" here: it collapses
+// objects in assertion messages to `{ …(n) }`.
+const chaiConfig = { truncateThreshold: 200 };
+
 export default defineConfig({
   test: {
     projects: [
@@ -19,6 +25,7 @@ export default defineConfig({
         },
         test: {
           name: "unit-nuxt",
+          chaiConfig,
           environmentOptions: {
             nuxt: {
               rootDir: fileURLToPath(new URL("./tests/fixtures/basic", import.meta.url)),
@@ -31,6 +38,7 @@ export default defineConfig({
         plugins: [vue()],
         test: {
           name: "unit-dom",
+          chaiConfig,
           environment: "happy-dom",
           include: ["tests/unit/**/*.dom.spec.ts"],
         },
@@ -38,6 +46,7 @@ export default defineConfig({
       {
         test: {
           name: "unit-node",
+          chaiConfig,
           environment: "node",
           include: ["tests/unit/**/*.spec.ts"],
           exclude: [...configDefaults.exclude, "**/*.nuxt.spec.ts", "**/*.dom.spec.ts"],
@@ -69,6 +78,7 @@ export default defineConfig({
         },
         test: {
           name: "browser",
+          chaiConfig,
           include: ["tests/vrt/**/*.spec.ts"],
           browser: {
             enabled: true,
